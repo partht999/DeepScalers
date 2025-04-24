@@ -63,7 +63,7 @@ interface VoiceRecognitionClient {
   startRecognition: () => Promise<VoiceRecognitionResult | null>;
   getMicrophones: () => Promise<any[]>;
   setMicrophone: (index: number) => void;
-  stopRecognition: () => void;
+  stopListening: () => void;
 }
 
 // Extend Window interface
@@ -215,7 +215,7 @@ const ChatPage = () => {
     }
     
     if (isListening) {
-      voiceClient.stopRecognition();
+      voiceClient.stopListening();
       setIsListening(false);
     } else {
       setIsListening(true);

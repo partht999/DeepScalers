@@ -9,6 +9,12 @@
 <body>
   <div id="root"></div>
   
+  <!-- Environment variables for client scripts -->
+  <script>
+    // This script exposes environment variables to global scripts
+    window.VITE_API_URL = "%VITE_API_URL%";
+  </script>
+  
   <!-- Voice Recognition Client -->
   <script src="/static/voice_recognition/js/voice_client.js"></script>
   

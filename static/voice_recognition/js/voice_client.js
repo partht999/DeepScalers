@@ -30,7 +30,7 @@ class VoiceRecognitionClient {
     }
     
     /**
-     * Set callback for errors
+     * Set callback for error handling
      * @param {Function} callback - Function to call with error messages
      */
     setErrorCallback(callback) {
@@ -38,32 +38,32 @@ class VoiceRecognitionClient {
     }
     
     /**
-     * Set callback for status updates
-     * @param {Function} callback - Function to call with status messages
+     * Set callback for status changes
+     * @param {Function} callback - Function to call with status updates
      */
     setStatusCallback(callback) {
         this.onStatusChange = callback;
     }
 
     /**
-     * Reports status changes
+     * Report status changes internally and to callback if set
      * @param {string} status - Status message
      * @private
      */
     _reportStatus(status) {
-        console.log(`Voice Recognition Status: ${status}`);
+        console.log(`Voice client status: ${status}`);
         if (this.onStatusChange) {
             this.onStatusChange(status);
         }
     }
 
     /**
-     * Reports errors
+     * Report errors internally and to callback if set
      * @param {string} error - Error message
      * @private
      */
     _reportError(error) {
-        console.error(`Voice Recognition Error: ${error}`);
+        console.error(`Voice client error: ${error}`);
         if (this.onError) {
             this.onError(error);
         }
@@ -71,29 +71,29 @@ class VoiceRecognitionClient {
     
     /**
      * Get available microphones
-     * @returns {Promise<Array>} - Promise resolving to array of available microphone devices
+     * @returns {Promise<Array>} - Array of available microphone devices
      */
     async getMicrophones() {
         try {
-            // Check if media devices are supported
             if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-                throw new Error('Media devices API not supported');
+                throw new Error('Media devices API not supported in this browser');
             }
-
-            // Request permission to access devices
-            await navigator.mediaDevices.getUserMedia({ audio: true });
             
-            // Get all media devices
+            // Check if we need permission first
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => track.stop());
+            } catch (err) {
+                throw new Error('Microphone permission denied');
+            }
+            
+            // Get devices
             const devices = await navigator.mediaDevices.enumerateDevices();
-            
-            // Filter for audio input devices
             const microphones = devices.filter(device => device.kind === 'audioinput');
-            
-            console.log('Available microphones:', microphones);
             
             return microphones;
         } catch (error) {
-            this._reportError(`Failed to get microphones: ${error.message}`);
+            this._reportError(error.message);
             return [];
         }
     }
@@ -127,11 +127,12 @@ class VoiceRecognitionClient {
             this.isListening = true;
             this._reportStatus('Starting voice recognition...');
             
-            // If WebSpeechAPI is available, use it
-            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            // In browser environments, always try Web Speech API first
+            if (typeof window !== 'undefined' && 
+                (window.SpeechRecognition || window.webkitSpeechRecognition)) {
                 return this._startBrowserRecognition();
-            }
-            // Otherwise use server-side recognition
+            } 
+            // Fall back to server-side recognition
             else {
                 return this._startServerRecognition();
             }
@@ -195,8 +196,7 @@ class VoiceRecognitionClient {
                 recognition.start();
                 
             } catch (error) {
-                this.isListening = false;
-                this._reportError(`Browser recognition failed: ${error.message}`);
+                this._reportError('Browser recognition failed: ' + error.message);
                 reject(error);
             }
         });
@@ -209,6 +209,11 @@ class VoiceRecognitionClient {
      */
     async _startServerRecognition() {
         try {
+            // First check if media devices are supported
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('Media recording not supported in this browser');
+            }
+            
             // Get microphone stream
             const constraints = {
                 audio: this.selectedMicrophoneIndex !== null 
@@ -216,6 +221,7 @@ class VoiceRecognitionClient {
                     : true 
             };
             
+            this._reportStatus('Requesting microphone access...');
             this.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
             this.audioChunks = [];
             
@@ -229,68 +235,64 @@ class VoiceRecognitionClient {
                 }
             };
             
-            // Handle recording stop
-            this.mediaRecorder.onstop = async () => {
-                try {
-                    // Stop all tracks in the stream
-                    if (this.currentStream) {
-                        this.currentStream.getTracks().forEach(track => track.stop());
-                        this.currentStream = null;
-                    }
-                    
-                    this._reportStatus('Processing audio...');
-                    
-                    // Create audio blob from recorded chunks
-                    const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
-                    
-                    // Create form data
-                    const formData = new FormData();
-                    formData.append('audio', audioBlob, 'recording.webm');
-                    
-                    // Send to server for processing
-                    const response = await fetch(`/api/voice-recognition`, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
-                    }
-                    
-                    // Process result
-                    const result = await response.json();
-                    
-                    // Call callback with result
-                    if (this.onRecognitionResult) {
-                        this.onRecognitionResult(result);
-                    }
-                    
-                    this._reportStatus('Recognition complete');
-                    this.isListening = false;
-                    
-                    return result;
-                } catch (error) {
-                    this._reportError(`Processing error: ${error.message}`);
-                    this.isListening = false;
-                    return null;
+            // Start recording
+            this.mediaRecorder.start(100); // Collect data in 100ms chunks
+            this._reportStatus('Recording audio...');
+            
+            // Stop recording after 5 seconds
+            setTimeout(() => {
+                if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+                    this.mediaRecorder.stop();
                 }
-            };
+            }, 5000);
             
-            // Start recording for 5 seconds
-            this.mediaRecorder.start();
-            this._reportStatus('Recording started...');
-            
-            // Set timeout to stop recording after 5 seconds
-            return new Promise((resolve) => {
-                setTimeout(() => {
-                    if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-                        this.mediaRecorder.stop();
-                        this._reportStatus('Recording stopped');
+            // Return promise that resolves when recording is processed
+            return new Promise((resolve, reject) => {
+                this.mediaRecorder.onstop = async () => {
+                    try {
+                        // Stop all tracks in the stream
+                        if (this.currentStream) {
+                            this.currentStream.getTracks().forEach(track => track.stop());
+                            this.currentStream = null;
+                        }
+                        
+                        this._reportStatus('Processing audio...');
+                        
+                        // Create audio blob from recorded chunks
+                        const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+                        
+                        // Create form data
+                        const formData = new FormData();
+                        formData.append('audio', audioBlob, 'recording.webm');
+                        
+                        // Send to server for processing
+                        const response = await fetch(this.apiBaseUrl, {
+                            method: 'POST',
+                            body: formData,
+                            credentials: 'include'
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                        }
+                        
+                        // Process result
+                        const result = await response.json();
+                        
+                        // Call callback with result
+                        if (this.onRecognitionResult) {
+                            this.onRecognitionResult(result);
+                        }
+                        
+                        this._reportStatus('Recognition complete');
+                        this.isListening = false;
+                        resolve(result);
+                    } catch (error) {
+                        this._reportError(`Processing error: ${error.message}`);
+                        this.isListening = false;
+                        reject(error);
                     }
-
-                    // Resolve with placeholder result - actual result will come from onstop handler
-                    resolve({ text: '', inProgress: true });
-                }, 5000);
+                };
             });
         } catch (error) {
             this.isListening = false;
@@ -300,26 +302,27 @@ class VoiceRecognitionClient {
     }
     
     /**
-     * Stop ongoing recognition
+     * Stop listening if currently active
      */
-    stopRecognition() {
+    stopListening() {
         if (!this.isListening) {
             return;
         }
-
-        this.isListening = false;
         
-        // Stop media recorder if active
+        this._reportStatus('Stopping recognition...');
+        
+        // If using media recorder
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
             this.mediaRecorder.stop();
         }
-
-        // Stop all tracks in current stream
+        
+        // Stop any active streams
         if (this.currentStream) {
             this.currentStream.getTracks().forEach(track => track.stop());
             this.currentStream = null;
         }
         
+        this.isListening = false;
         this._reportStatus('Recognition stopped by user');
     }
 }
@@ -329,5 +332,10 @@ window.VoiceRecognitionClient = VoiceRecognitionClient;
 console.log("VoiceRecognitionClient class registered globally");
 
 // Create a global instance for easy access
-window.voiceClient = new VoiceRecognitionClient('/api/voice-recognition');
-console.log("voiceClient instance created globally"); 
+// Try to get the API URL from environment variables if available
+const apiBaseUrl = (window.VITE_API_URL && window.VITE_API_URL !== '%VITE_API_URL%') 
+    ? `${window.VITE_API_URL}/voice-recognition`
+    : '/api/voice-recognition';
+    
+window.voiceClient = new VoiceRecognitionClient(apiBaseUrl);
+console.log("voiceClient instance created globally with API URL:", apiBaseUrl); 
