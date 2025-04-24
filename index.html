@@ -16,8 +16,15 @@
     window.VITE_API_URL = "";
   </script>
   
-  <!-- Voice Recognition Client -->
-  <script src="/static/voice_recognition/js/voice_client.js" type="text/javascript"></script>
+  <!-- Voice Recognition Client - Load after DOM is ready -->
+  <script>
+    // Load the voice client after the page loads to avoid Vite processing
+    document.addEventListener('DOMContentLoaded', function() {
+      const script = document.createElement('script');
+      script.src = '/static/voice_recognition/js/voice_client.js';
+      document.body.appendChild(script);
+    });
+  </script>
   
   <script type="module" src="/src/main.tsx"></script>
 </body>

@@ -63,6 +63,10 @@ export default defineConfig({
           vendor: ['react', 'react-dom', 'react-router-dom'],
         },
       },
+      // Exclude voice client script from processing
+      external: [
+        '/static/voice_recognition/js/voice_client.js'
+      ]
     },
   },
 }); 
