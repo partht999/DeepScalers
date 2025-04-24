@@ -1,0 +1,6 @@
+tree cd13e8ea618f5378920e8947fd4fe401381f318c
+parent 160e68f5bcf80ec241a7e75945e3cd7e8842d4ed
+author Parth Thakkar <thakkarparth793@gmail.com> 1745427133 +0530
+committer Parth Thakkar <thakkarparth793@gmail.com> 1745427133 +0530
+
+Explicitly add debug route to Vercel configuration
