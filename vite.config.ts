@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { copyFileSync, existsSync, mkdirSync } from 'fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -24,6 +24,26 @@ export default defineConfig({
           console.log('Voice recognition client copied to build output');
         } catch (err) {
           console.error('Error copying voice client:', err);
+        }
+        
+        // Inject environment variables into HTML
+        try {
+          const apiBaseUrl = process.env.VITE_API_URL || 'https://deepscalers.onrender.com/api';
+          console.log('Injecting API URL into HTML:', apiBaseUrl);
+          
+          const indexHtmlPath = path.resolve(__dirname, 'dist/index.html');
+          let indexHtml = readFileSync(indexHtmlPath, 'utf8');
+          
+          // Replace the placeholder with the actual value
+          indexHtml = indexHtml.replace(
+            'window.VITE_API_URL = "";',
+            `window.VITE_API_URL = "${apiBaseUrl}";`
+          );
+          
+          writeFileSync(indexHtmlPath, indexHtml);
+          console.log('Environment variables injected into HTML');
+        } catch (err) {
+          console.error('Error injecting environment variables:', err);
         }
       }
     }

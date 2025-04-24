@@ -12,11 +12,12 @@
   <!-- Environment variables for client scripts -->
   <script>
     // This script exposes environment variables to global scripts
-    window.VITE_API_URL = "%VITE_API_URL%";
+    // Will be populated by Vite during build
+    window.VITE_API_URL = "";
   </script>
   
   <!-- Voice Recognition Client -->
-  <script src="/static/voice_recognition/js/voice_client.js"></script>
+  <script src="/static/voice_recognition/js/voice_client.js" type="text/javascript"></script>
   
   <script type="module" src="/src/main.tsx"></script>
 </body>

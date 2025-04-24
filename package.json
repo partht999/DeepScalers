@@ -13,6 +13,7 @@
     "react-syntax-highlighter": "^15.6.1"
   },
   "devDependencies": {
+    "@types/node": "^22.14.1",
     "@types/react": "^18.2.21",
     "@types/react-dom": "^18.2.7",
     "@vitejs/plugin-react": "^4.0.4",
@@ -27,7 +28,7 @@
     "copy-voice-client": "mkdir -p dist/static/voice_recognition/js && cp static/voice_recognition/js/voice_client.js dist/static/voice_recognition/js/",
     "copy-voice-client-win": "mkdir -p dist\\static\\voice_recognition\\js && copy static\\voice_recognition\\js\\voice_client.js dist\\static\\voice_recognition\\js\\",
     "build": "vite build && npm run copy-voice-client-win",
-    "vercel-build": "npx vite build && npm run copy-voice-client",
+    "vercel-build": "vite build && mkdir -p dist/static/voice_recognition/js && cp static/voice_recognition/js/voice_client.js dist/static/voice_recognition/js/",
     "preview": "vite preview"
   },
   "eslintConfig": {
