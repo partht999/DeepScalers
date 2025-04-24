@@ -123,88 +123,137 @@ const ChatPage = () => {
   // Initialize the voice client from the global instance
   useEffect(() => {
     console.log("Initializing voice recognition client...");
-    console.log("window.voiceClient exists:", !!window.voiceClient);
-    console.log("window.VoiceRecognitionClient exists:", !!window.VoiceRecognitionClient);
     
-    if (window.voiceClient) {
-      try {
-        // Use the existing global instance
-        const client = window.voiceClient;
-        
-        // Set up event handlers
-        client.setRecognitionResultCallback((result) => {
-          console.log("Voice recognition result:", result);
-          if (result && result.text) {
-            setNewMessage(result.text);
-            setLastTranscript(result.text);
-            setShowTranscriptionSuccess(true);
-            setTimeout(() => setShowTranscriptionSuccess(false), 3000);
-          }
-        });
-        
-        client.setErrorCallback((error) => {
-          console.error('Voice recognition error:', error);
+    // Helper function to set up the voice client
+    function setupVoiceClient(client: VoiceRecognitionClient) {
+      // Set up event handlers
+      client.setRecognitionResultCallback((result: VoiceRecognitionResult) => {
+        console.log("Voice recognition result:", result);
+        if (result && result.text) {
+          setNewMessage(result.text);
+          setLastTranscript(result.text);
+          setShowTranscriptionSuccess(true);
+          setTimeout(() => setShowTranscriptionSuccess(false), 3000);
+        }
+      });
+      
+      client.setErrorCallback((error: string) => {
+        console.error('Voice recognition error:', error);
+        setIsListening(false);
+        setShowError(error);
+        setTimeout(() => setShowError(null), 5000);
+      });
+      
+      client.setStatusCallback((status: string) => {
+        console.log('Voice recognition status:', status);
+        if (status === 'Recognition complete' || status === 'Recognition stopped by user') {
           setIsListening(false);
-          setShowError(error);
-          setTimeout(() => setShowError(null), 5000);
-        });
-        
-        client.setStatusCallback((status) => {
-          console.log('Voice recognition status:', status);
-          if (status === 'Recognition complete' || status === 'Recognition stopped by user') {
-            setIsListening(false);
-          }
-        });
-        
-        // Store client
-        setVoiceClient(client);
-        console.log("Voice client ready");
-      } catch (error) {
-        console.error("Error initializing voice client:", error);
-        setShowError("Failed to initialize voice recognition");
-      }
-    } else if (window.VoiceRecognitionClient) {
-      try {
-        // Create a new instance with our API base URL
-        const client = new window.VoiceRecognitionClient('/api/voice-recognition');
-        
-        // Set up event handlers
-        client.setRecognitionResultCallback((result) => {
-          console.log("Voice recognition result:", result);
-          if (result && result.text) {
-            setNewMessage(result.text);
-            setLastTranscript(result.text);
-      setShowTranscriptionSuccess(true);
-            setTimeout(() => setShowTranscriptionSuccess(false), 3000);
-          }
-        });
-        
-        client.setErrorCallback((error) => {
-          console.error('Voice recognition error:', error);
-          setIsListening(false);
-      setShowError(error);
-          setTimeout(() => setShowError(null), 5000);
-        });
-        
-        client.setStatusCallback((status) => {
-          console.log('Voice recognition status:', status);
-          if (status === 'Recognition complete' || status === 'Recognition stopped by user') {
-            setIsListening(false);
-          }
-        });
-        
-        // Store client
-        setVoiceClient(client);
-        console.log("Voice client ready (created new instance)");
-      } catch (error) {
-        console.error("Error initializing voice client:", error);
-        setShowError("Failed to initialize voice recognition");
-      }
-    } else {
-      console.error("Voice recognition client not found in window object");
-      console.log("Window object properties:", Object.keys(window));
-      setShowError("Voice recognition not available - client not loaded");
+        }
+      });
+      
+      // Store client
+      setVoiceClient(client);
     }
+    
+    // Helper function to create a new voice client
+    function createNewVoiceClient() {
+      try {
+        // Use the API URL from env if available and is a valid string
+        const apiBaseUrl = import.meta.env.VITE_API_URL && typeof import.meta.env.VITE_API_URL === 'string' 
+          ? `${import.meta.env.VITE_API_URL}/voice-recognition`
+          : '/api/voice-recognition';
+          
+        console.log("Creating new voice client with API base URL:", apiBaseUrl);
+        
+        // Create a new instance with our API base URL
+        if (window.VoiceRecognitionClient) {
+          const client = new window.VoiceRecognitionClient(apiBaseUrl);
+          setupVoiceClient(client);
+          console.log("Voice client ready (created new instance)");
+        } else {
+          throw new Error("VoiceRecognitionClient constructor not available");
+        }
+      } catch (error) {
+        console.error("Error creating new voice client:", error);
+        setShowError("Failed to initialize voice recognition");
+      }
+    }
+    
+    const loadVoiceClient = async () => {
+      // Try to use the global voice client if it exists
+      if (window.voiceClient) {
+        try {
+          // Use the existing global instance
+          const client = window.voiceClient;
+          setupVoiceClient(client);
+          console.log("Voice client ready from global instance");
+        } catch (error) {
+          console.error("Error initializing global voice client:", error);
+          createNewVoiceClient();
+        }
+      } 
+      // If global client doesn't exist but the class constructor does
+      else if (window.VoiceRecognitionClient) {
+        console.log("No global voice client instance, creating a new one");
+        createNewVoiceClient();
+      } 
+      // No voice recognition available - try to load it dynamically
+      else {
+        console.error("Voice recognition client not available");
+        console.log("Window object properties:", Object.keys(window));
+        
+        // In production or development, try to dynamically load the script
+        const script = document.createElement('script');
+        
+        // Base URL is different in development vs production
+        const baseUrl = import.meta.env.DEV ? '' : '';
+        script.src = `${baseUrl}/static/voice_recognition/js/voice_client.js`;
+        
+        script.onload = () => {
+          console.log("Voice client script loaded dynamically");
+          if (window.VoiceRecognitionClient) {
+            createNewVoiceClient();
+          } else {
+            console.error("Voice client loaded but constructor not found");
+            setShowError("Voice client loaded but constructor not found");
+            
+            // Debug what was loaded
+            console.log("Script content loaded from:", script.src);
+            console.log("Window keys after load:", Object.keys(window));
+          }
+        };
+        
+        script.onerror = (e) => {
+          console.error("Failed to load voice client script:", e);
+          setShowError(`Failed to load voice recognition from ${script.src}`);
+          
+          // Try one more alternative location in case the path is different in production
+          const altScript = document.createElement('script');
+          altScript.src = `/voice_client.js`;
+          
+          altScript.onload = () => {
+            console.log("Voice client script loaded from alternative location");
+            if (window.VoiceRecognitionClient) {
+              createNewVoiceClient();
+            } else {
+              setShowError("Voice client alternative load failed");
+            }
+          };
+          
+          altScript.onerror = () => {
+            console.error("Failed to load voice client from alternative location");
+            setShowError("Voice recognition not available - all loading attempts failed");
+          };
+          
+          document.body.appendChild(altScript);
+        };
+        
+        document.body.appendChild(script);
+      }
+    };
+    
+    loadVoiceClient();
+    
   }, []);
   
   // Voice recognition handler
