@@ -29,9 +29,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'your-secret-key-here')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+DEBUG = os.getenv('DEBUG', 'False') == 'True'  # Default to False in production
 
-ALLOWED_HOSTS = ['*']  # Configure this appropriately in production
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'deepscalers.onrender.com',
+    '.onrender.com',  # Allow all subdomains of onrender.com
+]
+
 RENDER_EXTERNAL_HOSTNAME = os.getenv('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
@@ -71,14 +77,15 @@ MIDDLEWARE = [
 AUTH_USER_MODEL = 'student_auth.StudentUser'
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False  # Change to False to use specific origins
 CORS_ALLOW_CREDENTIALS = True
+
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite default port
+    "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://deepscalers.vercel.app",
-    "https://deepscalers.onrender.com",  # Render backend
-    "http://deepscalers.onrender.com",   # Render backend (http)
+    "https://deepscalers.vercel.app",  # Your frontend domain
+    "https://deepscalers.onrender.com",
+    "http://deepscalers.onrender.com",
 ]
 
 CORS_ALLOW_METHODS = [
@@ -98,6 +105,21 @@ CORS_ALLOW_HEADERS = [
     'dnt',
     'origin',
     'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# Add these new CORS settings
+CORS_ORIGIN_ALLOW_ALL = False
+CORS_ORIGIN_WHITELIST = [
+    "https://deepscalers.vercel.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+CORS_EXPOSE_HEADERS = [
+    'content-length',
+    'content-type',
     'x-csrftoken',
     'x-requested-with',
 ]
@@ -221,7 +243,7 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
             'style': '{',
         },
     },
@@ -232,9 +254,19 @@ LOGGING = {
         },
     },
     'loggers': {
-        'faq_handler': {
+        'django': {
             'handlers': ['console'],
             'level': 'INFO',
+            'propagate': True,
+        },
+        'faq_handler': {
+            'handlers': ['console'],
+            'level': 'DEBUG',  # Changed to DEBUG for more detailed logs
+            'propagate': True,
+        },
+        'student_auth': {
+            'handlers': ['console'],
+            'level': 'DEBUG',  # Added for auth debugging
             'propagate': True,
         },
     },
