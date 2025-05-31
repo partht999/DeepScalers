@@ -77,6 +77,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite default port
     "http://127.0.0.1:5173",
     "https://deepscalers.vercel.app",
+    "https://deepscalers.onrender.com",  # Render backend
+    "http://deepscalers.onrender.com",   # Render backend (http)
 ]
 
 CORS_ALLOW_METHODS = [
