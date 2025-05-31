@@ -77,15 +77,15 @@ MIDDLEWARE = [
 AUTH_USER_MODEL = 'student_auth.StudentUser'
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = False  # Change to False to use specific origins
+
 CORS_ALLOW_CREDENTIALS = True
 
+
+# CORS settings
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = [
+    "https://deepscalers.vercel.app",
     "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "https://deepscalers.vercel.app",  # Your frontend domain
-    "https://deepscalers.onrender.com",
-    "http://deepscalers.onrender.com",
 ]
 
 CORS_ALLOW_METHODS = [
@@ -110,19 +110,19 @@ CORS_ALLOW_HEADERS = [
 ]
 
 # Add these new CORS settings
-CORS_ORIGIN_ALLOW_ALL = False
-CORS_ORIGIN_WHITELIST = [
-    "https://deepscalers.vercel.app",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+# CORS_ORIGIN_ALLOW_ALL = False
+# CORS_ORIGIN_WHITELIST = [
+#     "https://deepscalers.vercel.app",
+#     "http://localhost:5173",
+#     "http://127.0.0.1:5173",
+# ]
 
-CORS_EXPOSE_HEADERS = [
-    'content-length',
-    'content-type',
-    'x-csrftoken',
-    'x-requested-with',
-]
+# CORS_EXPOSE_HEADERS = [
+#     'content-length',
+#     'content-type',
+#     'x-csrftoken',
+#     'x-requested-with',
+# ]
 
 ROOT_URLCONF = 'backend.urls'
 
