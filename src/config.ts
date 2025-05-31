@@ -10,12 +10,12 @@ export const API_CONFIG = {
   
   // Path constants
   AUTH: {
-    SEND_VERIFICATION: '/auth/send-verification/',
-    VERIFY_CODE: '/auth/verify-code/',
-    PROFILE: '/auth/profile/',
-    REGISTER: '/auth/register/',
-    TOKEN: '/auth/token/',
-    TOKEN_REFRESH: '/auth/token/refresh/',
+    SEND_VERIFICATION: '/student/send-verification/',
+    VERIFY_CODE: '/student/verify-code/',
+    PROFILE: '/student/profile/',
+    REGISTER: '/student/register/',
+    TOKEN: '/student/token/',
+    TOKEN_REFRESH: '/student/token/refresh/',
   },
 };
 

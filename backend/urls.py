@@ -18,11 +18,27 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import JsonResponse
+from faq_handler.views import FAQHandlerView
+
+def root_view(request):
+    return JsonResponse({
+        "message": "DeepScalers API is running",
+        "endpoints": {
+            "admin": "/admin/",
+            "auth": "/api/auth/",
+            "voice": "/api/voice/",
+            "faq": "/api/faq/ask/"
+        }
+    })
 
 urlpatterns = [
+    path('', root_view, name='root'),
     path('admin/', admin.site.urls),
     path('api/auth/', include('student_auth.urls')),
     path('api/voice/', include('voice_recognition.urls')),
+    # Direct mapping for FAQ endpoint
+    path('api/faq/ask/', FAQHandlerView.as_view(), name='ask_question'),
 ]
 
 # Serve media files in development

@@ -18,11 +18,35 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import JsonResponse
+from django.urls.resolvers import URLPattern, URLResolver
+from django.urls import get_resolver
+
+def root_view(request):
+    resolver = get_resolver()
+    url_patterns = []
+    
+    def extract_urls(urlpatterns, base=''):
+        for pattern in urlpatterns:
+            if isinstance(pattern, URLPattern):
+                url_patterns.append(f"{base}{pattern.pattern}")
+            elif isinstance(pattern, URLResolver):
+                extract_urls(pattern.url_patterns, f"{base}{pattern.pattern}")
+    
+    extract_urls(resolver.url_patterns)
+    
+    return JsonResponse({
+        'message': 'API is running',
+        'available_urls': url_patterns
+    })
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/auth/', include('student_auth.urls')),
+    path('api/student/', include('student_auth.urls')),
     path('api/voice/', include('voice_recognition.urls')),
+    path('api/assistance/', include('student_assistance.urls')),
+    path('api/faq/', include('faq_handler.urls')),
+    path('', root_view, name='root'),
 ]
 
 # Serve media files in development

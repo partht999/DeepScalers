@@ -1,16 +1,18 @@
-import { useState, useEffect } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
-import Home from './pages/Home'
-import ChatPage from './pages/ChatPage'
-import MyQuestions from './pages/MyQuestions'
-import FacultyAnswers from './pages/FacultyAnswers'
-import Deadlines from './pages/Deadlines'
-import Settings from './pages/Settings'
-import FacultyDashboard from './pages/FacultyDashboard'
-import DebugPage from './pages/Debug'
 import LoginModal from './components/LoginModal'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import BranchSelection from './pages/BranchSelection'
+import ChatPage from './pages/ChatPage'
+import Deadlines from './pages/Deadlines'
+import DebugPage from './pages/Debug'
+import FacultyAnswers from './pages/FacultyAnswers'
+import FacultyDashboard from './pages/FacultyDashboard'
+import Home from './pages/Home'
+import MyQuestions from './pages/MyQuestions'
+import Settings from './pages/Settings'
+import FAQ from './components/FAQ'
 
 function AppContent() {
   const [darkMode, setDarkMode] = useState(false)
@@ -61,8 +63,10 @@ function AppContent() {
           <Route path="faculty-answers" element={<FacultyAnswers />} />
           <Route path="deadlines" element={<Deadlines />} />
           <Route path="settings" element={<Settings />} />
-          <Route path="faculty-dashboard" element={<FacultyDashboard />} />
+          <Route path="faculty-dashboard" element={<BranchSelection />} />
+          <Route path="faculty-dashboard/dashboard" element={<FacultyDashboard />} />
           <Route path="debug" element={<DebugPage />} />
+          <Route path="faq" element={<FAQ />} />
         </Route>
       </Routes>
 

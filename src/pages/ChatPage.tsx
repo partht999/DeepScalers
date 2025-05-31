@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { FiSend, FiPaperclip, FiMic, FiChevronDown, FiCommand, FiZap, FiRefreshCw, FiThumbsUp, FiThumbsDown } from 'react-icons/fi'
 import ChatBubble, { MessageType } from '../components/ChatBubble'
+import axios from 'axios'
 
 // Add these animation styles to your tailwind.css or append to a style tag
 const VoiceAnimations = () => (
@@ -323,40 +324,73 @@ const ChatPage = () => {
   }, []);
   
   // Mock sending a message and getting AI response
-  const handleSendMessage = () => {
-    if (!newMessage.trim() || isLoading) return
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) return;
     
-    // Add user message
+    setIsLoading(true);
     const userMessage: MessageType = {
       id: Date.now().toString(),
       text: newMessage,
       sender: 'user',
       timestamp: new Date(),
-    }
+    };
     
-    setMessages([...messages, userMessage])
-    const currentMessage = newMessage;
-    setNewMessage('')
-    setIsLoading(true)
+    setMessages(prev => [...prev, userMessage]);
+    const currentMessage = newMessage; // Store the message before clearing
+    setNewMessage('');
     
-    // Reset textarea height
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-    }
-    
-    // Simulate AI response after delay
-    setTimeout(() => {
-      const aiResponse: MessageType = {
+    try {
+      // First, check if there's a similar question in Qdrant
+      console.log('Sending question to FAQ endpoint:', currentMessage);
+      const faqResponse = await axios.post('http://localhost:8000/api/faq/ask/', {
+        question: currentMessage
+      });
+
+      console.log('FAQ Response:', faqResponse.data);
+
+      if (faqResponse.data.answer) {
+        // If we found a matching FAQ, use that answer
+        console.log('Found FAQ answer with score:', faqResponse.data.similarity_score);
+        console.log('Similarity threshold:', faqResponse.data.similarity_threshold);
+        const aiMessage: MessageType = {
+          id: (Date.now() + 1).toString(),
+          text: `[Answer from FAQ Model]\n\n${faqResponse.data.answer}`,
+          sender: 'ai',
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, aiMessage]);
+      } else {
+        // If no FAQ match, generate a response using the existing logic
+        console.log('No FAQ match found. Score:', faqResponse.data.similarity_score);
+        console.log('Similarity threshold:', faqResponse.data.similarity_threshold);
+        const response = generateResponse(currentMessage, subject);
+        const aiMessage: MessageType = {
+          id: (Date.now() + 1).toString(),
+          text: `[Default Generated Response]\n\n${response}`,
+          sender: 'ai',
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, aiMessage]);
+      }
+    } catch (error: any) {
+      console.error('Error details:', error);
+      if (error.response) {
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+      }
+      // If there's an error with the FAQ check, fall back to the existing response generation
+      const response = generateResponse(currentMessage, subject);
+      const aiMessage: MessageType = {
         id: (Date.now() + 1).toString(),
-        text: generateResponse(currentMessage, subject),
+        text: `[Default Generated Response - FAQ check failed]\n\n${response}`,
         sender: 'ai',
         timestamp: new Date(),
-      }
-      
-      setMessages(prev => [...prev, aiResponse])
-      setIsLoading(false)
-    }, 1500)
-  }
+      };
+      setMessages(prev => [...prev, aiMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   // Regenerate last AI response
   const handleRegenerate = () => {
