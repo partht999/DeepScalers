@@ -109,7 +109,6 @@ CORS_ALLOW_HEADERS = [
 
 # Add these additional CORS settings
 CORS_ORIGIN_ALLOW_ALL = True
-CORS_REPLACE_HTTPS_REFERER = True
 CORS_URLS_REGEX = r'^/api/.*$'  # Allow CORS for all API endpoints
 
 # CORS_EXPOSE_HEADERS = [
