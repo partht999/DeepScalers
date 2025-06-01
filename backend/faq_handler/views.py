@@ -27,6 +27,8 @@ load_dotenv()
 
 class FAQHandlerView(APIView):
     permission_classes = [AllowAny]
+    COLLECTION_NAME = "student_faqs"  # Define collection name as a class constant
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         try:
@@ -50,22 +52,19 @@ class FAQHandlerView(APIView):
             )
             logger.info("Qdrant client initialized successfully")
             
-            # Collection name for student FAQs
-            self.collection_name = "student_faqs"
-            
             # Similarity threshold (lowered for testing)
             self.similarity_threshold = 0.5
             
-            # Verify Qdrant connection
+            # Verify Qdrant connection and collection
             try:
                 collections = self.qdrant_client.get_collections()
                 collection_names = [collection.name for collection in collections.collections]
                 logger.info(f"Available collections: {collection_names}")
                 
-                if self.collection_name not in collection_names:
-                    logger.error(f"Collection {self.collection_name} not found in Qdrant!")
-                    raise Exception(f"Collection {self.collection_name} not found in Qdrant")
-                logger.info(f"Verified Qdrant collection: {self.collection_name}")
+                if self.COLLECTION_NAME not in collection_names:
+                    logger.error(f"Collection {self.COLLECTION_NAME} not found in Qdrant!")
+                    raise Exception(f"Collection {self.COLLECTION_NAME} not found in Qdrant")
+                logger.info(f"Verified Qdrant collection: {self.COLLECTION_NAME}")
                 
             except Exception as e:
                 logger.error(f"Error verifying Qdrant collection: {str(e)}")
@@ -98,10 +97,10 @@ class FAQHandlerView(APIView):
             question_embedding = self.model.encode(question)
             logger.info("Question converted to embedding successfully")
 
-            # Search in Qdrant
-            logger.info("Searching in Qdrant...")
+            # Search in Qdrant - only in student_faqs collection
+            logger.info(f"Searching in Qdrant collection: {self.COLLECTION_NAME}")
             search_result = self.qdrant_client.search(
-                collection_name=self.collection_name,
+                collection_name=self.COLLECTION_NAME,
                 query_vector=question_embedding,
                 limit=1
             )
@@ -115,7 +114,8 @@ class FAQHandlerView(APIView):
                 return Response({
                     "answer": answer,
                     "similarity_score": score,
-                    "similarity_threshold": self.similarity_threshold
+                    "similarity_threshold": self.similarity_threshold,
+                    "collection_used": self.COLLECTION_NAME
                 })
             else:
                 # No match found
@@ -124,7 +124,8 @@ class FAQHandlerView(APIView):
                     "message": "No match found. Forwarded to faculty.",
                     "question": question,
                     "similarity_score": search_result[0].score if search_result else None,
-                    "similarity_threshold": self.similarity_threshold
+                    "similarity_threshold": self.similarity_threshold,
+                    "collection_used": self.COLLECTION_NAME
                 })
 
         except Exception as e:
@@ -134,20 +135,11 @@ class FAQHandlerView(APIView):
             return Response(
                 {
                     "error": error_msg,
-                    "traceback": traceback.format_exc()
+                    "traceback": traceback.format_exc(),
+                    "collection_used": self.COLLECTION_NAME
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-# Initialize the sentence transformer model globally
-model = SentenceTransformer('all-MiniLM-L6-v2')
-
-# Initialize Qdrant client globally
-qdrant_client = QdrantClient(
-    url=os.getenv('QDRANT_URL', 'http://localhost:6333'),
-    api_key=os.getenv('QDRANT_API_KEY'),
-    timeout=10.0
-)
 
 @csrf_exempt
 @require_http_methods(["POST"])
