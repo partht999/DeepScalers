@@ -128,7 +128,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://deepscalers.onrender.com",
 ]
 
-CORS_ALLOW_ALL_ORIGINS = False  # Set to False in production
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
 CORS_ALLOW_PRIVATE_NETWORK = True
@@ -153,15 +153,6 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
-
-# Add these new settings
-CORS_ORIGIN_WHITELIST = [
-    "https://deepscalers.vercel.app",
-    "http://localhost:5173",
-    "https://deepscalers.onrender.com",
-]
-
-CORS_ORIGIN_ALLOW_ALL = False
 
 # REST Framework
 REST_FRAMEWORK = {

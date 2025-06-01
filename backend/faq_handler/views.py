@@ -8,26 +8,15 @@ from django.conf import settings
 import os
 import logging
 import traceback
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-import json
-from qdrant_client.http import models
-from dotenv import load_dotenv
 from rest_framework.permissions import AllowAny
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load environment variables
-load_dotenv()
-
-# Create your views here.
-
 class FAQHandlerView(APIView):
     permission_classes = [AllowAny]
-    COLLECTION_NAME = "student_faqs"  # Define collection name as a class constant
+    COLLECTION_NAME = "student_faqs"
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -140,57 +129,3 @@ class FAQHandlerView(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-@csrf_exempt
-@require_http_methods(["POST"])
-def ask_question(request):
-    try:
-        # Log the raw request body
-        logger.info(f"Raw request body: {request.body}")
-        
-        # Parse the request body
-        data = json.loads(request.body)
-        question = data.get('question')
-        
-        logger.info(f"Received question: {question}")
-        
-        if not question:
-            logger.error("No question provided in request")
-            return JsonResponse({'error': 'No question provided'}, status=400)
-        
-        # Log Qdrant configuration
-        logger.info(f"Qdrant URL: {os.getenv('QDRANT_URL')}")
-        logger.info(f"Collection name: student_faqs")
-        
-        # Convert question to embedding
-        logger.info("Converting question to embedding...")
-        question_embedding = model.encode(question)
-        logger.info("Question converted to embedding successfully")
-        
-        # Search in Qdrant
-        search_result = qdrant_client.search(
-            collection_name="student_faqs",
-            query_vector=question_embedding,
-            limit=1
-        )
-        
-        logger.info(f"Search result: {search_result}")
-        
-        if search_result and len(search_result) > 0:
-            # Get the most relevant answer
-            answer = search_result[0].payload.get('answer')
-            score = search_result[0].score
-            
-            logger.info(f"Found answer with score {score}: {answer}")
-            
-            return JsonResponse({
-                'answer': answer,
-                'score': score
-            })
-        else:
-            logger.info("No matching answer found in Qdrant")
-            return JsonResponse({'answer': None})
-            
-    except Exception as e:
-        logger.error(f"Error processing question: {str(e)}", exc_info=True)
-        return JsonResponse({'error': str(e)}, status=500)
