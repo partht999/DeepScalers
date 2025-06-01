@@ -77,7 +77,7 @@ MIDDLEWARE = [
 AUTH_USER_MODEL = 'student_auth.StudentUser'
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = False  # Changed to False for security
+CORS_ALLOW_ALL_ORIGINS = True  # Temporarily set to True for testing
 CORS_ALLOWED_ORIGINS = [
     "https://deepscalers.vercel.app",
     "http://localhost:5173",
@@ -107,13 +107,10 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# Add these new CORS settings
-# CORS_ORIGIN_ALLOW_ALL = False
-# CORS_ORIGIN_WHITELIST = [
-#     "https://deepscalers.vercel.app",
-#     "http://localhost:5173",
-#     "http://127.0.0.1:5173",
-# ]
+# Add these additional CORS settings
+CORS_ORIGIN_ALLOW_ALL = True
+CORS_REPLACE_HTTPS_REFERER = True
+CORS_URLS_REGEX = r'^/api/.*$'  # Allow CORS for all API endpoints
 
 # CORS_EXPOSE_HEADERS = [
 #     'content-length',
