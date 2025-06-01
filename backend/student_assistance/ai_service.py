@@ -5,6 +5,7 @@ import numpy as np
 from typing import List, Tuple, Optional
 import os
 from dotenv import load_dotenv
+from django.conf import settings
 
 load_dotenv()
 
@@ -12,30 +13,34 @@ class AIService:
     def __init__(self):
         # Initialize the sentence transformer model
         self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        self.collection_name = "faq_collection"
         
-        # Initialize Qdrant client with environment variables
+        # Initialize Qdrant client with cloud configuration
         self.qdrant_client = QdrantClient(
-            url=os.getenv('QDRANT_URL', 'http://localhost:6333'),
-            api_key=os.getenv('QDRANT_API_KEY'),
-            timeout=10.0
+            url=settings.QDRANT_URL,
+            api_key=settings.QDRANT_API_KEY,
+            timeout=10.0  # Add timeout to prevent hanging
         )
         
-        # Create collection if it doesn't exist
         self._ensure_collection_exists()
     
     def _ensure_collection_exists(self):
         """Ensure the Qdrant collection exists."""
-        collections = self.qdrant_client.get_collections().collections
-        collection_names = [collection.name for collection in collections]
-        
-        if 'student_assistance' not in collection_names:
-            self.qdrant_client.create_collection(
-                collection_name='student_assistance',
-                vectors_config=models.VectorParams(
-                    size=384,  # Size of the all-MiniLM-L6-v2 embeddings
-                    distance=models.Distance.COSINE
+        try:
+            collections = self.qdrant_client.get_collections().collections
+            collection_names = [collection.name for collection in collections]
+            
+            if self.collection_name not in collection_names:
+                self.qdrant_client.create_collection(
+                    collection_name=self.collection_name,
+                    vectors_config=models.VectorParams(
+                        size=384,  # Size of the vectors from the model
+                        distance=models.Distance.COSINE
+                    )
                 )
-            )
+        except Exception as e:
+            print(f"Error ensuring collection exists: {str(e)}")
+            # Continue without the collection - it will be created when needed
     
     def get_embedding(self, text: str) -> List[float]:
         """Get the embedding for a given text."""

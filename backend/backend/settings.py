@@ -229,7 +229,8 @@ SIMPLE_JWT = {
 }
 
 # Qdrant settings
-QDRANT_URL = os.getenv('QDRANT_URL', 'http://localhost:6333')
+QDRANT_URL = os.getenv('QDRANT_URL', 'https://7775af46-4796-47d4-ab44-00c855e262f0.europe-west3-0.gcp.cloud.qdrant.io:6333')
+QDRANT_API_KEY = os.getenv('QDRANT_API_KEY', '')
 
 # Logging configuration
 LOGGING = {
@@ -255,12 +256,12 @@ LOGGING = {
         },
         'faq_handler': {
             'handlers': ['console'],
-            'level': 'DEBUG',  # Changed to DEBUG for more detailed logs
+            'level': 'DEBUG',
             'propagate': True,
         },
         'student_auth': {
             'handlers': ['console'],
-            'level': 'DEBUG',  # Added for auth debugging
+            'level': 'DEBUG',
             'propagate': True,
         },
     },
