@@ -16,8 +16,17 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: WEB_CONCURRENCY
-        value: 4
+        value: 2
       - key: MAX_REQUESTS
         value: 1000
       - key: MAX_REQUESTS_JITTER
-        value: 50 
+        value: 50
+      - key: PORT
+        value: 10000
+    plan: free
+    healthCheckPath: /api/health/
+    autoDeploy: true
+    disk:
+      name: tmp
+      mountPath: /tmp
+      sizeGB: 1 

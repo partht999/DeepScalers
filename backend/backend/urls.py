@@ -40,12 +40,16 @@ def root_view(request):
         'available_urls': url_patterns
     })
 
+def health_check(request):
+    return JsonResponse({"status": "healthy"})
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/student/', include('student_auth.urls')),
-    path('api/voice/', include('voice_recognition.urls')),
-    path('api/assistance/', include('student_assistance.urls')),
+    path('api/voice-recognition/', include('voice_recognition.urls')),
+    path('api/student-assistance/', include('student_assistance.urls')),
     path('api/faq/', include('faq_handler.urls')),
+    path('api/health/', health_check, name='health_check'),
     path('', root_view, name='root'),
 ]
 
