@@ -6,7 +6,7 @@ export const API_CONFIG = {
   BASE_URL: import.meta.env.VITE_API_URL || 
     (window.location.hostname === 'localhost' 
       ? 'http://localhost:8000/api' 
-      : 'https://deepscalers.onrender.com/api'), // Correct Render backend URL
+      : 'https://deepscalers.onrender.com/api'),
   
   // Path constants
   AUTH: {
@@ -32,7 +32,9 @@ export async function testBackendConnection() {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
+        'Origin': window.location.origin,
       },
+      credentials: 'include',
     });
     
     const elapsed = Date.now() - startTime;
