@@ -1,58 +1,57 @@
 from qdrant_client import QdrantClient
-from sentence_transformers import SentenceTransformer
-import json
+from qdrant_client.http import models
+import os
+from dotenv import load_dotenv
 import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Load environment variables
+load_dotenv()
+
 def test_qdrant_connection():
-    # Initialize Qdrant client
-    qdrant_client = QdrantClient(
-        url="https://7775af46-4796-47d4-ab44-00c855e262f0.europe-west3-0.gcp.cloud.qdrant.io",
-        api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.a_inwL3e0AkODn1eTDyN5crtGKHQGZ0ddIh1wHvHCLY",
-        timeout=10.0
-    )
-
-    # Initialize the sentence transformer model
-    model = SentenceTransformer('all-MiniLM-L6-v2')
-
-    # Test question
-    test_question = "How can I apply for the scholarship?"
-
-    # Convert question to embedding
-    question_embedding = model.encode(test_question)
-
-    print("\n1. Testing Qdrant Connection...")
     try:
-        # Get all collections
-        collections = qdrant_client.get_collections()
-        print("Available collections:", collections)
+        # Get credentials
+        url = os.getenv('QDRANT_URL')
+        api_key = os.getenv('QDRANT_API_KEY')
+        
+        if not url:
+            raise ValueError("QDRANT_URL environment variable is not set")
+        if not api_key:
+            raise ValueError("QDRANT_API_KEY environment variable is not set")
+        
+        logger.info(f"Testing connection to Qdrant at: {url}")
+        logger.info(f"API Key: {'*' * len(api_key) if api_key else 'Not set'}")
+        
+        # Initialize client
+        client = QdrantClient(url=url, api_key=api_key)
+        
+        # Get collections
+        collections = client.get_collections()
+        collection_names = [c.name for c in collections.collections]
+        logger.info(f"Available collections: {collection_names}")
         
         # Check if student_faqs collection exists
-        collection_names = [collection.name for collection in collections.collections]
         if "student_faqs" not in collection_names:
-            print("Error: student_faqs collection not found!")
-            return
-        
-        print("\n2. Searching in student_faqs collection...")
-        # Search in Qdrant
-        search_result = qdrant_client.search(
-            collection_name="student_faqs",
-            query_vector=question_embedding,
-            limit=1
-        )
-
-        if search_result:
-            print("\nSearch Results:")
-            print(f"Score: {search_result[0].score}")
-            print(f"Payload: {json.dumps(search_result[0].payload, indent=2)}")
+            logger.info("Creating student_faqs collection...")
+            client.create_collection(
+                collection_name="student_faqs",
+                vectors_config=models.VectorParams(
+                    size=384,  # Size for all-MiniLM-L6-v2 model
+                    distance=models.Distance.COSINE
+                )
+            )
+            logger.info("student_faqs collection created successfully!")
         else:
-            print("No results found!")
-
+            logger.info("student_faqs collection already exists!")
+        
+        return True
+        
     except Exception as e:
-        print(f"Error: {str(e)}")
+        logger.error(f"Error testing Qdrant connection: {str(e)}")
+        return False
 
 if __name__ == "__main__":
     test_qdrant_connection() 

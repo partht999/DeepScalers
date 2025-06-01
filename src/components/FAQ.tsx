@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { API_CONFIG } from '../config';
 
 const FAQ: React.FC = () => {
     const [question, setQuestion] = useState('');
@@ -15,7 +16,7 @@ const FAQ: React.FC = () => {
 
         try {
             console.log('Sending question:', question);
-            const response = await axios.post('https://deepscalers.onrender.com/api/faq/ask/', {
+            const response = await axios.post(`${API_CONFIG.BASE_URL}/faq/ask/`, {
                 question: question
             }, {
                 headers: {

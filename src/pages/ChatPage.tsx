@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { FiSend, FiPaperclip, FiMic, FiChevronDown, FiCommand, FiZap, FiRefreshCw, FiThumbsUp, FiThumbsDown } from 'react-icons/fi'
 import ChatBubble, { MessageType } from '../components/ChatBubble'
 import axios from 'axios'
+import { API_CONFIG } from '../config'
 
 // Add these animation styles to your tailwind.css or append to a style tag
 const VoiceAnimations = () => (
@@ -325,24 +326,23 @@ const ChatPage = () => {
   
   // Mock sending a message and getting AI response
   const handleSendMessage = async () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || isLoading) return;
     
-    setIsLoading(true);
-    const userMessage: MessageType = {
+    const currentMessage = newMessage;
+    setMessages(prev => [...prev, {
       id: Date.now().toString(),
-      text: newMessage,
+      text: currentMessage,
       sender: 'user',
       timestamp: new Date(),
-    };
+    }]);
     
-    setMessages(prev => [...prev, userMessage]);
-    const currentMessage = newMessage; // Store the message before clearing
+    setIsLoading(true);
     setNewMessage('');
     
     try {
       // First, check if there's a similar question in Qdrant
       console.log('Sending question to FAQ endpoint:', currentMessage);
-      const faqResponse = await axios.post('https://deepscalers.onrender.com/api/faq/ask/', {
+      const faqResponse = await axios.post(`${API_CONFIG.BASE_URL}/faq/ask/`, {
         question: currentMessage
       });
 
