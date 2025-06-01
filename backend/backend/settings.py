@@ -77,16 +77,14 @@ MIDDLEWARE = [
 AUTH_USER_MODEL = 'student_auth.StudentUser'
 
 # CORS settings
-
-CORS_ALLOW_CREDENTIALS = True
-
-
-# CORS settings
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False  # Changed to False for security
 CORS_ALLOWED_ORIGINS = [
     "https://deepscalers.vercel.app",
     "http://localhost:5173",
+    "https://deepscalers.onrender.com",
 ]
+
+CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_METHODS = [
     'DELETE',
