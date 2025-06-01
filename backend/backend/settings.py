@@ -176,7 +176,7 @@ TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', '')
 TWILIO_SERVICE_SID = os.getenv('TWILIO_SERVICE_SID', '')
 
 # Qdrant
-QDRANT_URL = os.getenv('QDRANT_URL', 'https://7775af46-4796-47d4-ab44-00c855e262f0.europe-west3-0.gcp.cloud.qdrant.io:6333')
+QDRANT_URL = os.getenv('QDRANT_URL', 'https://7775af46-4796-47d4-ab44-00c855e262f0.europe-west3-0.gcp.cloud.qdrant.io')
 QDRANT_API_KEY = os.getenv('QDRANT_API_KEY', '')
 
 # Logging
@@ -188,11 +188,23 @@ LOGGING = {
             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
             'style': '{',
         },
+        'simple': {
+            'format': '{levelname} {asctime} {message}',
+            'style': '{',
+        },
+        'request': {
+            'format': '{levelname} {asctime} {message} - IP: {ip} - Method: {method} - Path: {path}',
+            'style': '{',
+        },
     },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
+        },
+        'request_console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'request',
         },
     },
     'loggers': {
@@ -201,12 +213,27 @@ LOGGING = {
             'level': 'INFO',
             'propagate': True,
         },
+        'django.request': {
+            'handlers': ['request_console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'django.server': {
+            'handlers': ['request_console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
         'faq_handler': {
             'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': True,
         },
-        'student_auth': {
+        'corsheaders': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'django.security': {
             'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': True,
