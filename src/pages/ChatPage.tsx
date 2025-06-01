@@ -342,7 +342,7 @@ const ChatPage = () => {
     try {
       // First, check if there's a similar question in Qdrant
       console.log('Sending question to FAQ endpoint:', currentMessage);
-      const faqResponse = await axios.post('http://localhost:8000/api/faq/ask/', {
+      const faqResponse = await axios.post('https://deepscalers.onrender.com/api/faq/ask/', {
         question: currentMessage
       });
 
@@ -372,21 +372,19 @@ const ChatPage = () => {
         };
         setMessages(prev => [...prev, aiMessage]);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error details:', error);
-      if (error.response) {
-        console.error('Error response data:', error.response.data);
-        console.error('Error response status:', error.response.status);
+      if (axios.isAxiosError(error)) {
+        console.error('Error response data:', error.response?.data);
+        console.error('Error response status:', error.response?.status);
       }
-      // If there's an error with the FAQ check, fall back to the existing response generation
-      const response = generateResponse(currentMessage, subject);
-      const aiMessage: MessageType = {
+      const errorMessage: MessageType = {
         id: (Date.now() + 1).toString(),
-        text: `[Default Generated Response - FAQ check failed]\n\n${response}`,
+        text: 'Sorry, I encountered an error while processing your question. Please try again later.',
         sender: 'ai',
         timestamp: new Date(),
       };
-      setMessages(prev => [...prev, aiMessage]);
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }

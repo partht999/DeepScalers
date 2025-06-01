@@ -35,11 +35,17 @@ class FAQHandlerView(APIView):
             self.model = SentenceTransformer('all-MiniLM-L6-v2')
             logger.info("SentenceTransformer model initialized successfully")
             
-            # Initialize Qdrant client with environment variables
+            # Initialize Qdrant client with Django settings
             logger.info("Initializing Qdrant client...")
+            qdrant_url = settings.QDRANT_URL
+            qdrant_api_key = settings.QDRANT_API_KEY
+            
+            if not qdrant_url or qdrant_url.startswith('http://localhost'):
+                raise ValueError("QDRANT_URL must be set to a valid cloud URL")
+            
             self.qdrant_client = QdrantClient(
-                url=os.getenv('QDRANT_URL', 'http://localhost:6333'),
-                api_key=os.getenv('QDRANT_API_KEY'),
+                url=qdrant_url,
+                api_key=qdrant_api_key,
                 timeout=10.0
             )
             logger.info("Qdrant client initialized successfully")
@@ -126,7 +132,10 @@ class FAQHandlerView(APIView):
             logger.error(error_msg)
             logger.error(traceback.format_exc())
             return Response(
-                {"error": error_msg},
+                {
+                    "error": error_msg,
+                    "traceback": traceback.format_exc()
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
