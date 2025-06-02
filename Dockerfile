@@ -8,6 +8,7 @@ COPY backend/requirements.prod.txt .
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
+    && pip install --no-cache-dir --upgrade pip setuptools wheel \
     && pip install --no-cache-dir -r requirements.prod.txt \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
