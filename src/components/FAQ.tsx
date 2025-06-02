@@ -2,21 +2,36 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { API_CONFIG } from '../config';
 
+interface FAQResponse {
+    answer: string;
+    confidence: number;
+    threshold: number;
+    matched: boolean;
+    source: 'faq' | 'gemini';
+    message?: string;
+}
+
 const FAQ: React.FC = () => {
     const [question, setQuestion] = useState('');
     const [answer, setAnswer] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [confidence, setConfidence] = useState<number | null>(null);
+    const [threshold, setThreshold] = useState<number | null>(null);
+    const [source, setSource] = useState<'faq' | 'gemini' | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError('');
         setAnswer('');
+        setConfidence(null);
+        setThreshold(null);
+        setSource(null);
 
         try {
             console.log('Sending question:', question);
-            const response = await axios.post(`${API_CONFIG.BASE_URL}/faq/ask/`, {
+            const response = await axios.post<FAQResponse>(`${API_CONFIG.BASE_URL}/faq/ask/`, {
                 question: question
             }, {
                 headers: {
@@ -28,6 +43,9 @@ const FAQ: React.FC = () => {
 
             if (response.data.answer) {
                 setAnswer(response.data.answer);
+                setConfidence(response.data.confidence);
+                setThreshold(response.data.threshold);
+                setSource(response.data.source);
             } else if (response.data.message) {
                 setAnswer(response.data.message);
             } else {
@@ -78,6 +96,13 @@ const FAQ: React.FC = () => {
                 <div className="mt-4 p-4 bg-gray-100 rounded">
                     <h3 className="font-bold mb-2">Answer:</h3>
                     <p>{answer}</p>
+                    {confidence !== null && threshold !== null && (
+                        <div className="mt-2 text-sm text-gray-600">
+                            <p>Confidence: {(confidence * 100).toFixed(1)}%</p>
+                            <p>Threshold: {(threshold * 100).toFixed(1)}%</p>
+                            <p>Source: {source === 'faq' ? 'FAQ Database' : 'AI Assistant'}</p>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

@@ -6,7 +6,7 @@ export const API_CONFIG = {
   BASE_URL: import.meta.env.VITE_API_URL || 
     (window.location.hostname === 'localhost' 
       ? 'http://localhost:8000/api' 
-      : 'https://deepscalers.onrender.com/api'),
+      : 'https://deepscalers-backend-production.up.railway.app/api'),
   
   // Path constants
   AUTH: {

@@ -350,23 +350,23 @@ const ChatPage = () => {
 
       if (faqResponse.data.answer) {
         // If we found a matching FAQ, use that answer
-        console.log('Found FAQ answer with score:', faqResponse.data.similarity_score);
-        console.log('Similarity threshold:', faqResponse.data.similarity_threshold);
+        console.log('Found FAQ answer with score:', faqResponse.data.confidence);
+        console.log('Similarity threshold:', faqResponse.data.threshold);
         const aiMessage: MessageType = {
           id: (Date.now() + 1).toString(),
-          text: `[Answer from FAQ Model]\n\n${faqResponse.data.answer}`,
+          text: faqResponse.data.answer,
           sender: 'ai',
           timestamp: new Date(),
         };
         setMessages(prev => [...prev, aiMessage]);
       } else {
         // If no FAQ match, generate a response using the existing logic
-        console.log('No FAQ match found. Score:', faqResponse.data.similarity_score);
-        console.log('Similarity threshold:', faqResponse.data.similarity_threshold);
+        console.log('No FAQ match found. Score:', faqResponse.data.confidence);
+        console.log('Similarity threshold:', faqResponse.data.threshold);
         const response = generateResponse(currentMessage, subject);
         const aiMessage: MessageType = {
           id: (Date.now() + 1).toString(),
-          text: `[Default Generated Response]\n\n${response}`,
+          text: response,
           sender: 'ai',
           timestamp: new Date(),
         };

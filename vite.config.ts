@@ -28,7 +28,7 @@ export default defineConfig({
         
         // Inject environment variables into HTML
         try {
-          const apiBaseUrl = process.env.VITE_API_URL || 'https://deepscalers.onrender.com/api';
+          const apiBaseUrl = process.env.VITE_API_URL || 'https://deepscalers-backend-production.up.railway.app/api';
           console.log('Injecting API URL into HTML:', apiBaseUrl);
           
           const indexHtmlPath = path.resolve(__dirname, 'dist/index.html');
