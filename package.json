@@ -30,10 +30,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "copy-voice-client": "mkdir -p dist/static/voice_recognition/js && cp static/voice_recognition/js/voice_client.js dist/static/voice_recognition/js/",
-    "copy-voice-client-win": "mkdir -p dist\\static\\voice_recognition\\js && copy static\\voice_recognition\\js\\voice_client.js dist\\static\\voice_recognition\\js\\",
-    "build": "vite build && npm run copy-voice-client-win",
-    "vercel-build": "vite build && mkdir -p dist/static/voice_recognition/js && cp static/voice_recognition/js/voice_client.js dist/static/voice_recognition/js/",
+    "build": "vite build",
     "preview": "vite preview"
   },
   "eslintConfig": {

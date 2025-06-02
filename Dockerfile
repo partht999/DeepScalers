@@ -12,6 +12,10 @@ RUN npm ci
 # Copy frontend source
 COPY . .
 
+# Create voice recognition directory and copy voice client
+RUN mkdir -p dist/static/voice_recognition/js && \
+    cp static/voice_recognition/js/voice_client.js dist/static/voice_recognition/js/
+
 # Build frontend
 RUN npm run build
 
