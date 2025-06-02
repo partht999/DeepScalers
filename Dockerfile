@@ -8,6 +8,13 @@ COPY backend/requirements.prod.txt .
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
+    python3-dev \
+    libpq-dev \
+    gcc \
+    swig \
+    libpulse-dev \
+    portaudio19-dev \
+    python3-pyaudio \
     && pip install --no-cache-dir --upgrade pip setuptools wheel \
     && pip install --no-cache-dir -r requirements.prod.txt \
     && apt-get clean \
@@ -37,6 +44,9 @@ COPY backend/collect_static.py .
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libgomp1 \
+    libpq5 \
+    libpulse0 \
+    portaudio19-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p staticfiles media
