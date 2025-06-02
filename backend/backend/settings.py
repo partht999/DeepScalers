@@ -189,7 +189,7 @@ LOGGING = {
             'style': '{',
         },
         'request': {
-            'format': '{levelname} {asctime} {message} - IP: {ip} - Method: {method} - Path: {path}',
+            'format': '{levelname} {asctime} {message} - Method: {method} - Path: {path}',
             'style': '{',
         },
     },
@@ -198,10 +198,6 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
-        'request_console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'request',
-        },
     },
     'loggers': {
         'django': {
@@ -209,29 +205,9 @@ LOGGING = {
             'level': 'INFO',
             'propagate': True,
         },
-        'django.request': {
-            'handlers': ['request_console'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-        'django.server': {
-            'handlers': ['request_console'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-        'faq_handler': {
+        'student_assistance': {
             'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-        'corsheaders': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-        'django.security': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
+            'level': 'INFO',
             'propagate': True,
         },
     },

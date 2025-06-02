@@ -12,6 +12,9 @@ import PyPDF2
 from rest_framework.views import APIView
 from django.core.files.storage import default_storage
 import logging
+import os
+import tempfile
+from pathlib import Path
 
 User = get_user_model()
 ai_service = AIService()
@@ -102,6 +105,7 @@ class PDFTextView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        temp_dir = None
         try:
             if 'pdf_file' not in request.FILES:
                 return Response(
@@ -111,25 +115,56 @@ class PDFTextView(APIView):
 
             pdf_file = request.FILES['pdf_file']
             
-            # Save the file temporarily
-            file_path = default_storage.save(f'temp/{pdf_file.name}', pdf_file)
-            file_path = default_storage.path(file_path)
+            # Create a temporary directory
+            temp_dir = tempfile.mkdtemp()
+            temp_file_path = os.path.join(temp_dir, pdf_file.name)
+            
+            # Save the uploaded file
+            with open(temp_file_path, 'wb+') as destination:
+                for chunk in pdf_file.chunks():
+                    destination.write(chunk)
 
             # Extract text from PDF
             extracted_text = []
-            with open(file_path, 'rb') as file:
-                pdf_reader = PyPDF2.PdfReader(file)
-                for page in pdf_reader.pages:
-                    text = page.extract_text()
-                    if text:
-                        extracted_text.append(text)
+            try:
+                with open(temp_file_path, 'rb') as file:
+                    pdf_reader = PyPDF2.PdfReader(file)
+                    
+                    # Check if PDF is encrypted
+                    if pdf_reader.is_encrypted:
+                        return Response(
+                            {'error': 'Encrypted PDF files are not supported'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    # Process each page
+                    for page_num in range(len(pdf_reader.pages)):
+                        try:
+                            page = pdf_reader.pages[page_num]
+                            text = page.extract_text()
+                            if text:
+                                extracted_text.append(text)
+                        except Exception as page_error:
+                            logger.warning(f"Error processing page {page_num + 1}: {str(page_error)}")
+                            continue
 
-            # Clean up the temporary file
-            default_storage.delete(file_path)
+            except PyPDF2.PdfReadError as pdf_error:
+                logger.error(f"PDF reading error: {str(pdf_error)}")
+                return Response(
+                    {'error': 'Invalid or corrupted PDF file'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if not extracted_text:
+                return Response(
+                    {'error': 'No text could be extracted from the PDF'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             return Response({
                 'text': '\n\n'.join(extracted_text),
-                'pages': len(extracted_text)
+                'pages': len(extracted_text),
+                'total_pages': len(pdf_reader.pages)
             })
 
         except Exception as e:
@@ -138,3 +173,12 @@ class PDFTextView(APIView):
                 {'error': f'Error processing PDF: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        finally:
+            # Clean up temporary files
+            if temp_dir and os.path.exists(temp_dir):
+                try:
+                    for file in os.listdir(temp_dir):
+                        os.remove(os.path.join(temp_dir, file))
+                    os.rmdir(temp_dir)
+                except Exception as cleanup_error:
+                    logger.error(f"Error cleaning up temporary files: {str(cleanup_error)}")

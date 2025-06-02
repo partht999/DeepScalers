@@ -35,6 +35,14 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ onTextExtracted }) => {
     const formData = new FormData();
     formData.append('pdf_file', file);
 
+    // Get the token from localStorage
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError('Please log in to use this feature');
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await axios.post(
         `${API_CONFIG.BASE_URL}/student-assistance/pdf/extract-text/`,
@@ -42,6 +50,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ onTextExtracted }) => {
         {
           headers: {
             'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${token}`,
           },
         }
       );
@@ -50,8 +59,12 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ onTextExtracted }) => {
       if (onTextExtracted) {
         onTextExtracted(response.data.text);
       }
-    } catch (err) {
-      setError('Error extracting text from PDF. Please try again.');
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        setError('Please log in to use this feature');
+      } else {
+        setError('Error extracting text from PDF. Please try again.');
+      }
       console.error('Error:', err);
     } finally {
       setLoading(false);
