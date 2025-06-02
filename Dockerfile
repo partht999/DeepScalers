@@ -1,9 +1,10 @@
 # Stage 1: Install Python dependencies
-FROM python:3.12-slim-bookworm as builder  # Using newer bookworm base
+# Using newer bookworm base
+FROM python:3.12-slim-bookworm as builder
 
 WORKDIR /app
 
-# Install system dependencies in a single layer
+# Install system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
@@ -17,73 +18,93 @@ RUN apt-get update && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip and install build tools first
-RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel
+# Upgrade pip and install build tools
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# Install requirements in groups with explicit versions
+# Copy requirements file
 COPY backend/requirements.prod.txt .
 
-# Core Django dependencies first
-RUN python -m pip install --no-cache-dir \
-    "Django==4.2.0" \
-    "djangorestframework==3.14.0" \
-    "django-cors-headers==4.3.0" \
-    "gunicorn==21.2.0"
+# Install core dependencies first
+RUN pip install --no-cache-dir -v \
+    Django==4.2.0 \
+    djangorestframework==3.14.0 \
+    django-cors-headers==4.3.0 \
+    django-filter==23.2 \
+    django-rest-auth==0.9.5 \
+    django-allauth==0.57.0 \
+    djangorestframework-simplejwt==5.3.0 \
+    dj-database-url==2.1.0 \
+    whitenoise==6.5.0 \
+    gunicorn==21.2.0
 
-# Database and auth dependencies
-RUN python -m pip install --no-cache-dir \
-    "psycopg2-binary==2.9.9" \
-    "django-allauth==0.57.0" \
-    "djangorestframework-simplejwt==5.3.0"
+# Install database dependencies
+RUN pip install --no-cache-dir -v psycopg2-binary==2.9.9
 
-# AI/ML dependencies (install numpy first)
-RUN python -m pip install --no-cache-dir \
-    "numpy==1.24.0" && \
-    python -m pip install --no-cache-dir \
-    "pandas==2.0.0" \
-    "scikit-learn==1.3.0" \
-    "sentence-transformers==2.2.2"
+# Install AI and ML dependencies
+RUN pip install --no-cache-dir -v \
+    numpy==1.24.0 \
+    pandas==2.0.0 \
+    scikit-learn==1.3.0 \
+    sentence-transformers==2.2.2 \
+    qdrant-client==1.6.0
 
-# Audio processing (install in separate layer)
-RUN python -m pip install --no-cache-dir \
-    "pydub==0.25.1" \
-    "SpeechRecognition==3.14.2" \
-    "pocketsphinx==5.0.4"
+# Install audio processing dependencies
+RUN pip install --no-cache-dir -v \
+    pydub==0.25.1 \
+    SpeechRecognition==3.14.2 \
+    pocketsphinx==5.0.4
 
-# Stage 2: Runtime image
+# Install PDF processing dependencies
+RUN pip install --no-cache-dir -v PyPDF2==3.0.1
+
+# Install utility dependencies
+RUN pip install --no-cache-dir -v \
+    python-dotenv==1.0.0 \
+    requests==2.31.0 \
+    twilio==8.12.0
+
+# Stage 2: Create a lightweight runtime image
 FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
-# Install runtime dependencies
+# Copy only the necessary files from builder
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy only the necessary backend files
+COPY backend/manage.py .
+COPY backend/backend/ ./backend/
+COPY backend/student_assistance/ ./student_assistance/
+COPY backend/student_auth/ ./student_auth/
+COPY backend/authentication/ ./authentication/
+COPY backend/faq_handler/ ./faq_handler/
+COPY backend/voice_recognition/ ./voice_recognition/
+COPY backend/gunicorn_config.py .
+COPY backend/collect_static.py .
+
+# Install only runtime dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libgomp1 \
     libpq5 \
     libpulse0 \
+    portaudio19-dev \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p staticfiles media
 
-# Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-
-# Copy application code (using .dockerignore to exclude unnecessary files)
-COPY backend/ .
-
-# Environment variables
+# Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PORT=10000 \
     PYTHONPATH=/app \
-    DJANGO_SETTINGS_MODULE=backend.settings \
-    PATH="/root/.local/bin:${PATH}"
+    DJANGO_SETTINGS_MODULE=backend.settings
 
-# Create necessary directories
-RUN mkdir -p staticfiles media
+# Collect static files
+RUN python collect_static.py --noinput
 
-# Collect static files (if needed)
-RUN python manage.py collectstatic --noinput || echo "Static collection failed (might be expected in some cases)"
-
+# Expose the port Railway will use
 EXPOSE 10000
 
-CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:10000"]
+# Run the application
+CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:10000", "--config", "gunicorn_config.py"]
