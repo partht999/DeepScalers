@@ -182,4 +182,4 @@ ENV DJANGO_SETTINGS_MODULE=backend.settings
 EXPOSE 10000
 
 # Run the application
-CMD gunicorn backend.wsgi:application --bind 0.0.0.0:10000 
+CMD gunicorn backend.wsgi:application --bind 0.0.0.0:10000
