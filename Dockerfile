@@ -1,5 +1,5 @@
 # Build stage for Node.js
-FROM node:18 AS frontend-builder
+FROM node:18-alpine AS frontend-builder
 
 WORKDIR /app
 
@@ -17,21 +17,29 @@ RUN mkdir -p dist/static/voice_recognition/js && \
     cp static/voice_recognition/js/voice_client.js dist/static/voice_recognition/js/
 
 # Build frontend
-RUN npm run build
+RUN npm run build && \
+    # Clean up unnecessary files
+    rm -rf node_modules && \
+    rm -rf src && \
+    rm -rf public
 
 # Python backend stage
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies and clean up in one layer
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Copy backend files
 COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+# Install Python dependencies and clean up
+RUN pip install --no-cache-dir -r requirements.txt && \
+    rm -rf /root/.cache/pip/*
 
 # Copy backend source
 COPY backend/ .
@@ -39,8 +47,10 @@ COPY backend/ .
 # Copy built frontend files
 COPY --from=frontend-builder /app/dist /app/static
 
-# Collect static files
-RUN python manage.py collectstatic --noinput
+# Collect static files and clean up
+RUN python manage.py collectstatic --noinput && \
+    find /app -type d -name "__pycache__" -exec rm -r {} + && \
+    find /app -type f -name "*.pyc" -delete
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
