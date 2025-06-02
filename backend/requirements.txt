@@ -19,4 +19,5 @@ pydub==0.25.1
 requests==2.31.0
 psycopg2-binary==2.9.9  # For PostgreSQL support
 SpeechRecognition==3.14.2  # Speech recognition library
-pocketsphinx==5.0.4  # Offline speech recognition engine 
+pocketsphinx==5.0.4  # Offline speech recognition engine
+PyPDF2==3.0.1 

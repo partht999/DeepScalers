@@ -9,4 +9,5 @@ router.register(r'knowledge-base', views.KnowledgeBaseViewSet, basename='knowled
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('pdf/extract-text/', views.PDFTextView.as_view(), name='pdf-extract-text'),
 ] 

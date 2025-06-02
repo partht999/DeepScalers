@@ -8,9 +8,14 @@ from .models import Question, Answer, KnowledgeBase
 from .serializers import QuestionSerializer, AnswerSerializer, KnowledgeBaseSerializer
 from .ai_service import AIService
 from django.contrib.auth import get_user_model
+import PyPDF2
+from rest_framework.views import APIView
+from django.core.files.storage import default_storage
+import logging
 
 User = get_user_model()
 ai_service = AIService()
+logger = logging.getLogger(__name__)
 
 class QuestionViewSet(viewsets.ModelViewSet):
     serializer_class = QuestionSerializer
@@ -92,3 +97,44 @@ class KnowledgeBaseViewSet(viewsets.ModelViewSet):
         
         similar_questions = ai_service.search_similar_questions(question)
         return Response(similar_questions)
+
+class PDFTextView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            if 'pdf_file' not in request.FILES:
+                return Response(
+                    {'error': 'No PDF file provided'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            pdf_file = request.FILES['pdf_file']
+            
+            # Save the file temporarily
+            file_path = default_storage.save(f'temp/{pdf_file.name}', pdf_file)
+            file_path = default_storage.path(file_path)
+
+            # Extract text from PDF
+            extracted_text = []
+            with open(file_path, 'rb') as file:
+                pdf_reader = PyPDF2.PdfReader(file)
+                for page in pdf_reader.pages:
+                    text = page.extract_text()
+                    if text:
+                        extracted_text.append(text)
+
+            # Clean up the temporary file
+            default_storage.delete(file_path)
+
+            return Response({
+                'text': '\n\n'.join(extracted_text),
+                'pages': len(extracted_text)
+            })
+
+        except Exception as e:
+            logger.error(f"Error processing PDF: {str(e)}")
+            return Response(
+                {'error': f'Error processing PDF: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
