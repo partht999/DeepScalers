@@ -121,6 +121,7 @@ const ChatPage = () => {
   const [isListening, setIsListening] = useState(false)
   const [voiceClient, setVoiceClient] = useState<VoiceRecognitionClient | null>(null)
   const [isInputFocused, setIsInputFocused] = useState(false);
+  const initialQueryProcessedRef = useRef(false);
   
   // Initialize the voice client from the global instance
   useEffect(() => {
@@ -286,11 +287,62 @@ const ChatPage = () => {
   
   // Submit initial query if provided
   useEffect(() => {
-    if (initialQuery) {
-      handleSendMessage();
+    if (initialQuery && messages.length === 1 && !initialQueryProcessedRef.current) {
+      initialQueryProcessedRef.current = true;
+      const currentMessage = initialQuery;
+      // Generate unique ID using timestamp and random number
+      const generateUniqueId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      setMessages(prev => [...prev, {
+        id: generateUniqueId(),
+        text: currentMessage,
+        sender: 'user',
+        timestamp: new Date(),
+      }]);
+      
+      setIsLoading(true);
+      setNewMessage('');
+      
+      // Process the initial query
+      (async () => {
+        try {
+          const faqResponse = await axios.post(`${API_CONFIG.BASE_URL}/faq/ask/`, {
+            question: currentMessage
+          });
+
+          if (faqResponse.data.answer) {
+            const aiMessage: MessageType = {
+              id: generateUniqueId(),
+              text: faqResponse.data.answer,
+              sender: 'ai',
+              timestamp: new Date(),
+            };
+            setMessages(prev => [...prev, aiMessage]);
+          } else {
+            const response = generateResponse(currentMessage, subject);
+            const aiMessage: MessageType = {
+              id: generateUniqueId(),
+              text: response,
+              sender: 'ai',
+              timestamp: new Date(),
+            };
+            setMessages(prev => [...prev, aiMessage]);
+          }
+        } catch (error) {
+          console.error('Error processing initial query:', error);
+          const errorMessage: MessageType = {
+            id: generateUniqueId(),
+            text: 'Sorry, I encountered an error while processing your question. Please try again later.',
+            sender: 'ai',
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, errorMessage]);
+        } finally {
+          setIsLoading(false);
+        }
+      })();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialQuery]);
   
   // Auto-scroll to bottom when messages update
   useEffect(() => {
@@ -329,8 +381,27 @@ const ChatPage = () => {
     if (!newMessage.trim() || isLoading) return;
     
     const currentMessage = newMessage;
+    // Check if this message is already in the chat
+    const isDuplicate = messages.some(msg => 
+      msg.text === currentMessage && 
+      msg.sender === 'user' && 
+      Date.now() - new Date(msg.timestamp).getTime() < 5000 // Within last 5 seconds
+    );
+    
+    if (isDuplicate) {
+      return;
+    }
+
+    // Check if this is the initial query being sent again
+    if (currentMessage === initialQuery && initialQueryProcessedRef.current) {
+      return;
+    }
+    
+    // Generate unique ID using timestamp and random number
+    const generateUniqueId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
     setMessages(prev => [...prev, {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       text: currentMessage,
       sender: 'user',
       timestamp: new Date(),
@@ -353,7 +424,7 @@ const ChatPage = () => {
         console.log('Found FAQ answer with score:', faqResponse.data.confidence);
         console.log('Similarity threshold:', faqResponse.data.threshold);
         const aiMessage: MessageType = {
-          id: (Date.now() + 1).toString(),
+          id: generateUniqueId(),
           text: faqResponse.data.answer,
           sender: 'ai',
           timestamp: new Date(),
@@ -365,7 +436,7 @@ const ChatPage = () => {
         console.log('Similarity threshold:', faqResponse.data.threshold);
         const response = generateResponse(currentMessage, subject);
         const aiMessage: MessageType = {
-          id: (Date.now() + 1).toString(),
+          id: generateUniqueId(),
           text: response,
           sender: 'ai',
           timestamp: new Date(),
@@ -379,7 +450,7 @@ const ChatPage = () => {
         console.error('Error response status:', error.response?.status);
       }
       const errorMessage: MessageType = {
-        id: (Date.now() + 1).toString(),
+        id: generateUniqueId(),
         text: 'Sorry, I encountered an error while processing your question. Please try again later.',
         sender: 'ai',
         timestamp: new Date(),
