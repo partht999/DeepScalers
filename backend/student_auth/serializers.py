@@ -22,15 +22,12 @@ class UserSerializer(serializers.ModelSerializer):
 
 class UserCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating a user."""
-    password = serializers.CharField(write_only=True)
-    
     class Meta:
         model = User
-        fields = ('phone_number', 'password', 'first_name', 'last_name', 'email')
+        fields = ('phone_number', 'first_name', 'last_name', 'email')
         
     def create(self, validated_data):
-        password = validated_data.pop('password')
         user = User(**validated_data)
-        user.set_password(password)
+        user.is_verified = True  # Since they've verified their phone
         user.save()
         return user 

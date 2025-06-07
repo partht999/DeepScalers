@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiUser, FiMail, FiLock, FiArrowLeft, FiArrowRight } from 'react-icons/fi';
+import { FiUser, FiMail, FiArrowLeft, FiArrowRight } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { createStudent } from '../lib/studentOperations';
 
@@ -14,15 +14,13 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ phone, onSuccess, onCancel 
   
   const [formData, setFormData] = useState({
     phone_number: phone,
-    password: '',
-    confirm_password: '',
     first_name: '',
     last_name: '',
     email: '',
-    student_id: '',  // Added student_id field
-    department: '',  // Added department field
-    year_of_study: '1st Year',  // Added year_of_study field with default
-    current_semester: '',  // Added current_semester field
+    student_id: '',
+    department: '',
+    year_of_study: '1st Year',
+    current_semester: '',
   });
   
   const [formError, setFormError] = useState<string | null>(null);
@@ -41,16 +39,6 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ phone, onSuccess, onCancel 
       setFormError('Phone number is required');
       return;
     }
-    
-    if (!formData.password) {
-      setFormError('Password is required');
-      return;
-    }
-    
-    if (formData.password !== formData.confirm_password) {
-      setFormError('Passwords do not match');
-      return;
-    }
 
     if (!formData.student_id) {
       setFormError('Student ID is required');
@@ -59,9 +47,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ phone, onSuccess, onCancel 
     
     try {
       // First register the user in the auth system
-      await register({
+      const authData = await register({
         phone_number: formData.phone_number,
-        password: formData.password,
         first_name: formData.first_name || undefined,
         last_name: formData.last_name || undefined,
         email: formData.email || undefined,
@@ -238,48 +225,6 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ phone, onSuccess, onCancel 
               className="pl-10 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm transition-all duration-200"
               placeholder="Enter your email"
               value={formData.email}
-              onChange={handleChange}
-            />
-          </div>
-        </div>
-        
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Password
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400 dark:text-gray-500">
-              <FiLock size={18} />
-            </div>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              className="pl-10 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm transition-all duration-200"
-              placeholder="Create a secure password"
-              value={formData.password}
-              onChange={handleChange}
-            />
-          </div>
-        </div>
-        
-        <div>
-          <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Confirm Password
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400 dark:text-gray-500">
-              <FiLock size={18} />
-            </div>
-            <input
-              id="confirm_password"
-              name="confirm_password"
-              type="password"
-              required
-              className="pl-10 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm transition-all duration-200"
-              placeholder="Confirm your password"
-              value={formData.confirm_password}
               onChange={handleChange}
             />
           </div>

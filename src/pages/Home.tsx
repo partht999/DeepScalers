@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { FiSend, FiSearch, FiBookOpen, FiClock, FiUsers, FiArrowRight, FiCommand, FiZap, FiLogIn, FiBriefcase, FiWifi, FiWifiOff } from 'react-icons/fi'
 import { useAuth } from '../context/AuthContext'
 import { testBackendConnection, API_CONFIG } from '../config'
+import { navigateToChat } from '../lib/navigation'
 
 // Example queries for suggestions
 const exampleQueries = [
@@ -62,11 +63,20 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
   }, []);
 
   // Handle query submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      // Go to chat page with the query
-      navigate('/chat', { state: { initialQuery: query } });
+      // Process the message directly
+      const message = query.trim();
+      setQuery('');
+      
+      // Navigate to chat with the message
+      navigate('/chat', {
+        state: {
+          initialQuery: message,
+          autoSend: true
+        }
+      });
     }
   };
 

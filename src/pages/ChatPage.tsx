@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { FiSend, FiPaperclip, FiMic, FiChevronDown, FiCommand, FiZap, FiRefreshCw, FiThumbsUp, FiThumbsDown } from 'react-icons/fi'
 import ChatBubble, { MessageType } from '../components/ChatBubble'
+import { processMessage, createUserMessage, createAIMessage } from '../lib/chatOperations'
 import axios from 'axios'
 import { API_CONFIG } from '../config'
 
@@ -98,12 +99,14 @@ const subjects = [
 
 interface LocationState {
   initialQuery?: string;
+  autoSend?: boolean;
 }
 
 const ChatPage = () => {
   const location = useLocation();
   const state = location.state as LocationState;
   const initialQuery = state?.initialQuery || '';
+  const shouldAutoSend = state?.autoSend || false;
   
   const [messages, setMessages] = useState<MessageType[]>(() => {
     // Load messages from localStorage on initial render
@@ -299,59 +302,29 @@ const ChatPage = () => {
     if (initialQuery && messages.length === 1 && !initialQueryProcessedRef.current) {
       initialQueryProcessedRef.current = true;
       const currentMessage = initialQuery;
-      // Generate unique ID using timestamp and random number
-      const generateUniqueId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       
-      setMessages(prev => [...prev, {
-        id: generateUniqueId(),
-        text: currentMessage,
-        sender: 'user',
-        timestamp: new Date(),
-      }]);
+      // Add user message
+      const userMessage = createUserMessage(currentMessage);
+      setMessages(prev => [...prev, userMessage]);
       
       setIsLoading(true);
       setNewMessage('');
       
-      // Process the initial query
-      (async () => {
-        try {
-          const faqResponse = await axios.post(`${API_CONFIG.BASE_URL}/faq/ask/`, {
-            question: currentMessage
-          });
-
-          if (faqResponse.data.answer) {
-            const aiMessage: MessageType = {
-              id: generateUniqueId(),
-              text: faqResponse.data.answer,
-              sender: 'ai',
-              timestamp: new Date(),
-            };
-            setMessages(prev => [...prev, aiMessage]);
-          } else {
-            const response = generateResponse(currentMessage, subject);
-            const aiMessage: MessageType = {
-              id: generateUniqueId(),
-              text: response,
-              sender: 'ai',
-              timestamp: new Date(),
-            };
-            setMessages(prev => [...prev, aiMessage]);
-          }
-        } catch (error) {
-          console.error('Error processing initial query:', error);
-          const errorMessage: MessageType = {
-            id: generateUniqueId(),
-            text: 'Sorry, I encountered an error while processing your question. Please try again later.',
-            sender: 'ai',
-            timestamp: new Date(),
-          };
+      // Process the message
+      processMessage(
+        currentMessage,
+        subject,
+        (aiMessage) => {
+          setMessages(prev => [...prev, aiMessage]);
+          setIsLoading(false);
+        },
+        (errorMessage) => {
           setMessages(prev => [...prev, errorMessage]);
-        } finally {
           setIsLoading(false);
         }
-      })();
+      );
     }
-  }, [initialQuery]);
+  }, [initialQuery, shouldAutoSend]);
   
   // Auto-scroll to bottom when messages update
   useEffect(() => {
@@ -385,7 +358,16 @@ const ChatPage = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
   
-  // Mock sending a message and getting AI response
+  // Handle auto-send when navigating from homepage
+  useEffect(() => {
+    if (location.state?.autoSend && location.state?.initialQuery && !initialQueryProcessedRef.current) {
+      setNewMessage(location.state.initialQuery);
+      handleSendMessage();
+      initialQueryProcessedRef.current = true;
+    }
+  }, [location.state]);
+  
+  // Handle sending a message
   const handleSendMessage = async () => {
     if (!newMessage.trim() || isLoading) return;
     
@@ -406,68 +388,26 @@ const ChatPage = () => {
       return;
     }
     
-    // Generate unique ID using timestamp and random number
-    const generateUniqueId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    setMessages(prev => [...prev, {
-      id: generateUniqueId(),
-      text: currentMessage,
-      sender: 'user',
-      timestamp: new Date(),
-    }]);
+    // Add user message
+    const userMessage = createUserMessage(currentMessage);
+    setMessages(prev => [...prev, userMessage]);
     
     setIsLoading(true);
     setNewMessage('');
     
-    try {
-      // First, check if there's a similar question in Qdrant
-      console.log('Sending question to FAQ endpoint:', currentMessage);
-      const faqResponse = await axios.post(`${API_CONFIG.BASE_URL}/faq/ask/`, {
-        question: currentMessage
-      });
-
-      console.log('FAQ Response:', faqResponse.data);
-
-      if (faqResponse.data.answer) {
-        // If we found a matching FAQ, use that answer
-        console.log('Found FAQ answer with score:', faqResponse.data.confidence);
-        console.log('Similarity threshold:', faqResponse.data.threshold);
-        const aiMessage: MessageType = {
-          id: generateUniqueId(),
-          text: faqResponse.data.answer,
-          sender: 'ai',
-          timestamp: new Date(),
-        };
+    // Process the message
+    processMessage(
+      currentMessage,
+      subject,
+      (aiMessage) => {
         setMessages(prev => [...prev, aiMessage]);
-      } else {
-        // If no FAQ match, generate a response using the existing logic
-        console.log('No FAQ match found. Score:', faqResponse.data.confidence);
-        console.log('Similarity threshold:', faqResponse.data.threshold);
-        const response = generateResponse(currentMessage, subject);
-        const aiMessage: MessageType = {
-          id: generateUniqueId(),
-          text: response,
-          sender: 'ai',
-          timestamp: new Date(),
-        };
-        setMessages(prev => [...prev, aiMessage]);
+        setIsLoading(false);
+      },
+      (errorMessage) => {
+        setMessages(prev => [...prev, errorMessage]);
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Error details:', error);
-      if (axios.isAxiosError(error)) {
-        console.error('Error response data:', error.response?.data);
-        console.error('Error response status:', error.response?.status);
-      }
-      const errorMessage: MessageType = {
-        id: generateUniqueId(),
-        text: 'Sorry, I encountered an error while processing your question. Please try again later.',
-        sender: 'ai',
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
+    );
   };
   
   // Regenerate last AI response
