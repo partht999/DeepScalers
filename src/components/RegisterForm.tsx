@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { FiUser, FiMail, FiLock, FiArrowLeft, FiArrowRight } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
-import { FiUser, FiMail, FiLock, FiArrowRight, FiArrowLeft } from 'react-icons/fi';
+import { createStudent } from '../lib/studentOperations';
 
 interface RegisterFormProps {
   phone: string;
@@ -18,11 +19,15 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ phone, onSuccess, onCancel 
     first_name: '',
     last_name: '',
     email: '',
+    student_id: '',  // Added student_id field
+    department: '',  // Added department field
+    year_of_study: '1st Year',  // Added year_of_study field with default
+    current_semester: '',  // Added current_semester field
   });
   
   const [formError, setFormError] = useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -46,9 +51,14 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ phone, onSuccess, onCancel 
       setFormError('Passwords do not match');
       return;
     }
+
+    if (!formData.student_id) {
+      setFormError('Student ID is required');
+      return;
+    }
     
     try {
-      // Register the user
+      // First register the user in the auth system
       await register({
         phone_number: formData.phone_number,
         password: formData.password,
@@ -56,47 +66,56 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ phone, onSuccess, onCancel 
         last_name: formData.last_name || undefined,
         email: formData.email || undefined,
       });
+
+      // Then create the student record in Supabase
+      const { data: studentData, error: studentError } = await createStudent({
+        phone_number: formData.phone_number,
+        email: formData.email || undefined,
+        first_name: formData.first_name || undefined,
+        last_name: formData.last_name || undefined,
+        student_id: formData.student_id,
+        department: formData.department || undefined,
+        year_of_study: formData.year_of_study as any,
+        current_semester: formData.current_semester || undefined,
+        is_verified: false,
+        is_active: true,
+      });
+
+      if (studentError) {
+        throw studentError;
+      }
       
       // Call onSuccess callback on successful registration
       onSuccess();
     } catch (error) {
-      // Error is already set in the auth context
       console.error('Registration error:', error);
+      setFormError(error instanceof Error ? error.message : 'Registration failed');
     }
   };
-  
+
   return (
-    <div>
-      {error && (
-        <div className="mb-4 rounded-lg bg-red-50 dark:bg-red-900/20 p-4 border-l-4 border-red-500 dark:border-red-500">
-          <p className="text-sm font-medium text-red-800 dark:text-red-400">{error}</p>
-        </div>
-      )}
-      
-      {formError && (
-        <div className="mb-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 p-4 border-l-4 border-amber-500 dark:border-amber-500">
-          <p className="text-sm font-medium text-amber-800 dark:text-amber-400">{formError}</p>
-        </div>
-      )}
-      
-      <form className="space-y-5" onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Phone Number
-          </label>
-          <input
-            id="phone_number"
-            name="phone_number"
-            type="tel"
-            required
-            className="block w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm transition-all duration-200"
-            value={formData.phone_number}
-            onChange={handleChange}
-            readOnly
-            disabled
-          />
-        </div>
+    <div className="w-full max-w-md mx-auto">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {error && (
+          <div className="rounded-md bg-red-50 p-4">
+            <div className="flex">
+              <div className="ml-3">
+                <p className="text-sm font-medium text-red-800">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
         
+        {formError && (
+          <div className="rounded-md bg-red-50 p-4">
+            <div className="flex">
+              <div className="ml-3">
+                <p className="text-sm font-medium text-red-800">{formError}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -132,6 +151,76 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ phone, onSuccess, onCancel 
               onChange={handleChange}
             />
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="student_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Student ID
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400 dark:text-gray-500">
+              <FiUser size={18} />
+            </div>
+            <input
+              id="student_id"
+              name="student_id"
+              type="text"
+              required
+              className="pl-10 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm transition-all duration-200"
+              placeholder="Enter your student ID"
+              value={formData.student_id}
+              onChange={handleChange}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="department" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Department
+          </label>
+          <input
+            id="department"
+            name="department"
+            type="text"
+            className="block w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm transition-all duration-200"
+            placeholder="Enter your department"
+            value={formData.department}
+            onChange={handleChange}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="year_of_study" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Year of Study
+          </label>
+          <select
+            id="year_of_study"
+            name="year_of_study"
+            className="block w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm transition-all duration-200"
+            value={formData.year_of_study}
+            onChange={handleChange}
+          >
+            <option value="1st Year">1st Year</option>
+            <option value="2nd Year">2nd Year</option>
+            <option value="3rd Year">3rd Year</option>
+            <option value="4th Year">4th Year</option>
+            <option value="Graduate">Graduate</option>
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="current_semester" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Current Semester
+          </label>
+          <input
+            id="current_semester"
+            name="current_semester"
+            type="text"
+            className="block w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm transition-all duration-200"
+            placeholder="Enter your current semester"
+            value={formData.current_semester}
+            onChange={handleChange}
+          />
         </div>
         
         <div>
@@ -196,7 +285,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ phone, onSuccess, onCancel 
           </div>
         </div>
 
-        <div className="flex justify-between space-x-4 pt-4">
+        <div className="flex gap-4">
           <button
             type="button"
             onClick={onCancel}
