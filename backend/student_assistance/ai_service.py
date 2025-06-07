@@ -6,8 +6,13 @@ from typing import List, Tuple, Optional
 import os
 from dotenv import load_dotenv
 from django.conf import settings
+import google.generativeai as genai
 
 load_dotenv()
+
+# Configure Gemini
+genai.configure(api_key=os.getenv('GEMINI_API_KEY', 'AIzaSyC2wc4qKrB-oXKYHakv1PWvnk97uAC13V0'))
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 class AIService:
     def __init__(self):
@@ -85,6 +90,10 @@ class AIService:
         similar_questions = self.search_similar_questions(question, limit=1)
         
         if not similar_questions:
+            # Generate a comprehensive answer using Gemini
+            comprehensive_answer = self.generate_comprehensive_answer(question)
+            if comprehensive_answer:
+                return comprehensive_answer, 0.7
             return None
         
         best_match, score = similar_questions[0]
@@ -92,4 +101,49 @@ class AIService:
         if score >= confidence_threshold:
             return best_match['answer'], score
         
-        return None 
+        # If the match is not confident enough, generate a comprehensive answer
+        comprehensive_answer = self.generate_comprehensive_answer(question)
+        if comprehensive_answer:
+            return comprehensive_answer, 0.7
+        
+        return None
+
+    def generate_comprehensive_answer(self, question: str) -> str:
+        """Generate a comprehensive answer using Gemini AI."""
+        try:
+            prompt = f"""
+            Please provide a detailed and comprehensive answer to the following question. 
+            Structure your response with:
+            1. A clear introduction
+            2. Main points with explanations
+            3. Examples where relevant
+            4. A brief conclusion
+            5. Additional resources or references if applicable
+
+            Question: {question}
+
+            Guidelines:
+            - Be thorough and detailed
+            - Use clear and academic language
+            - Include relevant examples
+            - Break down complex concepts
+            - Provide context where needed
+            """
+
+            # Configure generation parameters for more detailed output
+            generation_config = {
+                "temperature": 0.7,  # Slightly higher temperature for more creative responses
+                "top_p": 0.95,      # Higher top_p for more diverse outputs
+                "top_k": 40,        # Higher top_k for more variety
+                "max_output_tokens": 2048,  # Maximum output length
+            }
+
+            response = model.generate_content(
+                prompt,
+                generation_config=generation_config
+            )
+            
+            return response.text
+        except Exception as e:
+            print(f"Error generating comprehensive answer: {str(e)}")
+            return None 

@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
 from .models import Question, Answer, KnowledgeBase
 from .serializers import QuestionSerializer, AnswerSerializer, KnowledgeBaseSerializer
@@ -15,10 +15,118 @@ import logging
 import os
 import tempfile
 from pathlib import Path
+import google.generativeai as genai
+from qdrant_client import QdrantClient
+from qdrant_client.models import PointStruct, VectorParams, Distance
+from sentence_transformers import SentenceTransformer
+import uuid
+import re
 
 User = get_user_model()
 ai_service = AIService()
 logger = logging.getLogger(__name__)
+
+# Configure Gemini
+genai.configure(api_key=os.getenv('GEMINI_API_KEY', 'AIzaSyC2wc4qKrB-oXKYHakv1PWvnk97uAC13V0'))
+model = genai.GenerativeModel("gemini-1.5-flash")
+
+# Configure Qdrant
+qdrant_client = QdrantClient(
+    url=os.getenv('QDRANT_URL', 'https://7775af46-4796-47d4-ab44-00c855e262f0.europe-west3-0.gcp.cloud.qdrant.io:6333'),
+    api_key=os.getenv('QDRANT_API_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.a_inwL3e0AkODn1eTDyN5crtGKHQGZ0ddIh1wHvHCLY')
+)
+embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+
+def generate_qa_pairs(text):
+    """Generate Q&A pairs from text using Gemini."""
+    try:
+        prompt = f"""
+        Generate comprehensive question-answer pairs based on the following content. 
+        Make sure to cover all important concepts, details, and nuances from the text.
+        Generate at least 5-7 detailed Q&A pairs that thoroughly cover the content.
+
+        Guidelines:
+        1. Questions should be specific and detailed
+        2. Answers should be comprehensive and well-explained
+        3. Include both basic and advanced concepts
+        4. Cover all major topics and subtopics
+        5. Include examples where relevant
+        6. Make sure answers are self-contained and complete
+
+        Content to analyze:
+        \"\"\"{text}\"\"\"
+
+        Format the output as:
+        1. **Question:** [Detailed question about a specific aspect]
+           **Answer:** [Comprehensive answer with explanations, examples, and relevant details]
+
+        2. **Question:** [Next detailed question]
+           **Answer:** [Next comprehensive answer]
+        """
+
+        # Configure generation parameters for more detailed output
+        generation_config = {
+            "temperature": 0.7,  # Slightly higher temperature for more creative responses
+            "top_p": 0.95,      # Higher top_p for more diverse outputs
+            "top_k": 40,        # Higher top_k for more variety
+            "max_output_tokens": 2048,  # Maximum output length
+        }
+
+        response = model.generate_content(
+            prompt,
+            generation_config=generation_config
+        )
+        qa_output = response.text
+        logger.info("Generated Q&A pairs from text")
+
+        # Parse Q&A pairs
+        faq_data = []
+        qa_pairs = re.findall(r"\*\*Question:\*\*\s*(.*?)\n\s*\*\*Answer:\*\*\s*(.*?)(?=\n\d+\.|\Z)", qa_output, re.DOTALL)
+
+        for q, a in qa_pairs:
+            faq_data.append({
+                "question": q.strip(),
+                "answer": a.strip()
+            })
+
+        if not faq_data:
+            logger.warning("No Q&A pairs found in Gemini's response")
+            return []
+
+        logger.info(f"Generated {len(faq_data)} Q&A pairs")
+        return faq_data
+    except Exception as e:
+        logger.error(f"Error generating Q&A pairs: {str(e)}")
+        return []
+
+def upload_to_qdrant(faq_data):
+    """Upload Q&A pairs to Qdrant."""
+    try:
+        collection_name = "student_faqs"
+        if not qdrant_client.collection_exists(collection_name):
+            qdrant_client.recreate_collection(
+                collection_name=collection_name,
+                vectors_config=VectorParams(size=384, distance=Distance.COSINE),
+            )
+
+        # Create and upload Qdrant points
+        points = []
+        for item in faq_data:
+            embedding = embedding_model.encode(item["question"]).tolist()
+            points.append(
+                PointStruct(
+                    id=str(uuid.uuid4()),
+                    vector=embedding,
+                    payload=item
+                )
+            )
+
+        qdrant_client.upsert(collection_name=collection_name, points=points)
+        logger.info(f"Successfully uploaded {len(points)} Q&A pairs to Qdrant")
+        return True
+    except Exception as e:
+        logger.error(f"Error uploading to Qdrant: {str(e)}")
+        return False
 
 class QuestionViewSet(viewsets.ModelViewSet):
     serializer_class = QuestionSerializer
@@ -102,36 +210,44 @@ class KnowledgeBaseViewSet(viewsets.ModelViewSet):
         return Response(similar_questions)
 
 class PDFTextView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         temp_dir = None
         try:
+            logger.info("Received PDF extraction request")
+            
             if 'pdf_file' not in request.FILES:
+                logger.error("No PDF file provided in request")
                 return Response(
                     {'error': 'No PDF file provided'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
             pdf_file = request.FILES['pdf_file']
+            logger.info(f"Received PDF file: {pdf_file.name}, size: {pdf_file.size} bytes")
             
             # Create a temporary directory
             temp_dir = tempfile.mkdtemp()
             temp_file_path = os.path.join(temp_dir, pdf_file.name)
+            logger.info(f"Created temporary file at: {temp_file_path}")
             
             # Save the uploaded file
             with open(temp_file_path, 'wb+') as destination:
                 for chunk in pdf_file.chunks():
                     destination.write(chunk)
+            logger.info("Successfully saved PDF file")
 
             # Extract text from PDF
             extracted_text = []
             try:
                 with open(temp_file_path, 'rb') as file:
                     pdf_reader = PyPDF2.PdfReader(file)
+                    logger.info(f"PDF loaded successfully, total pages: {len(pdf_reader.pages)}")
                     
                     # Check if PDF is encrypted
                     if pdf_reader.is_encrypted:
+                        logger.error("PDF is encrypted")
                         return Response(
                             {'error': 'Encrypted PDF files are not supported'},
                             status=status.HTTP_400_BAD_REQUEST
@@ -144,6 +260,9 @@ class PDFTextView(APIView):
                             text = page.extract_text()
                             if text:
                                 extracted_text.append(text)
+                                logger.info(f"Successfully extracted text from page {page_num + 1}")
+                            else:
+                                logger.warning(f"No text extracted from page {page_num + 1}")
                         except Exception as page_error:
                             logger.warning(f"Error processing page {page_num + 1}: {str(page_error)}")
                             continue
@@ -156,15 +275,35 @@ class PDFTextView(APIView):
                 )
 
             if not extracted_text:
+                logger.error("No text could be extracted from the PDF")
                 return Response(
                     {'error': 'No text could be extracted from the PDF'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            # Combine all extracted text
+            full_text = '\n\n'.join(extracted_text)
+            
+            # Generate Q&A pairs
+            faq_data = generate_qa_pairs(full_text)
+            if not faq_data:
+                logger.warning("No Q&A pairs were generated")
+                return Response({
+                    'text': full_text,
+                    'pages': len(extracted_text),
+                    'total_pages': len(pdf_reader.pages),
+                    'qa_pairs': []
+                })
+
+            # Upload to Qdrant
+            upload_success = upload_to_qdrant(faq_data)
+            
             return Response({
-                'text': '\n\n'.join(extracted_text),
+                'text': full_text,
                 'pages': len(extracted_text),
-                'total_pages': len(pdf_reader.pages)
+                'total_pages': len(pdf_reader.pages),
+                'qa_pairs': faq_data,
+                'uploaded_to_qdrant': upload_success
             })
 
         except Exception as e:
@@ -180,5 +319,6 @@ class PDFTextView(APIView):
                     for file in os.listdir(temp_dir):
                         os.remove(os.path.join(temp_dir, file))
                     os.rmdir(temp_dir)
+                    logger.info("Successfully cleaned up temporary files")
                 except Exception as cleanup_error:
                     logger.error(f"Error cleaning up temporary files: {str(cleanup_error)}")

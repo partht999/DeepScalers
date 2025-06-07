@@ -20,4 +20,6 @@ requests==2.31.0
 psycopg2-binary==2.9.9  # For PostgreSQL support
 SpeechRecognition==3.14.2  # Speech recognition library
 pocketsphinx==5.0.4  # Offline speech recognition engine
-PyPDF2==3.0.1 
+PyPDF2==3.0.1
+google-generativeai>=0.3.0  # For Gemini AI
+sentence-transformers>=2.2.2  # For text embeddings 

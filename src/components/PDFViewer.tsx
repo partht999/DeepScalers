@@ -6,9 +6,15 @@ interface PDFViewerProps {
   onTextExtracted?: (text: string) => void;
 }
 
+interface QAPair {
+  question: string;
+  answer: string;
+}
+
 const PDFViewer: React.FC<PDFViewerProps> = ({ onTextExtracted }) => {
   const [file, setFile] = useState<File | null>(null);
   const [extractedText, setExtractedText] = useState<string>('');
+  const [qaPairs, setQAPairs] = useState<QAPair[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,41 +37,49 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ onTextExtracted }) => {
 
     setLoading(true);
     setError(null);
+    setQAPairs([]);
 
     const formData = new FormData();
     formData.append('pdf_file', file);
 
-    // Get the token from localStorage
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setError('Please log in to use this feature');
-      setLoading(false);
-      return;
-    }
-
     try {
+      console.log('Uploading PDF to:', `${API_CONFIG.BASE_URL}/student-assistance/pdf/extract-text/`);
       const response = await axios.post(
         `${API_CONFIG.BASE_URL}/student-assistance/pdf/extract-text/`,
         formData,
         {
           headers: {
             'Content-Type': 'multipart/form-data',
-            'Authorization': `Bearer ${token}`,
           },
         }
       );
 
+      console.log('PDF extraction response:', response.data);
       setExtractedText(response.data.text);
+      if (response.data.qa_pairs) {
+        setQAPairs(response.data.qa_pairs);
+      }
       if (onTextExtracted) {
         onTextExtracted(response.data.text);
       }
     } catch (err: any) {
-      if (err.response?.status === 401) {
-        setError('Please log in to use this feature');
+      console.error('PDF extraction error:', err);
+      if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error('Error response data:', err.response.data);
+        console.error('Error response status:', err.response.status);
+        console.error('Error response headers:', err.response.headers);
+        setError(err.response.data.error || 'Error extracting text from PDF. Please try again.');
+      } else if (err.request) {
+        // The request was made but no response was received
+        console.error('Error request:', err.request);
+        setError('No response from server. Please check your connection and try again.');
       } else {
-        setError('Error extracting text from PDF. Please try again.');
+        // Something happened in setting up the request that triggered an Error
+        console.error('Error message:', err.message);
+        setError('Error setting up the request. Please try again.');
       }
-      console.error('Error:', err);
     } finally {
       setLoading(false);
     }
@@ -105,7 +119,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ onTextExtracted }) => {
             : 'bg-blue-600 hover:bg-blue-700'
           }`}
       >
-        {loading ? 'Extracting...' : 'Extract Text'}
+        {loading ? 'Processing...' : 'Extract Text & Generate Q&A'}
       </button>
 
       {extractedText && (
@@ -117,6 +131,26 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ onTextExtracted }) => {
             <pre className="whitespace-pre-wrap text-sm text-gray-700">
               {extractedText}
             </pre>
+          </div>
+        </div>
+      )}
+
+      {qaPairs.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Generated Q&A Pairs
+          </h3>
+          <div className="space-y-4">
+            {qaPairs.map((qa, index) => (
+              <div key={index} className="p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-medium text-blue-600 mb-2">
+                  Q: {qa.question}
+                </h4>
+                <p className="text-gray-700">
+                  A: {qa.answer}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       )}
