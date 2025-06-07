@@ -122,9 +122,10 @@ CORS_ALLOWED_ORIGINS = [
     "https://deepscalers.vercel.app",
     "http://localhost:5173",
     "https://deepscalers.onrender.com",
+    "http://localhost:3000",  # Add local development server
 ]
 
-CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = True  # Temporarily allow all origins for testing
 CORS_ALLOW_CREDENTIALS = True
 CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
 CORS_ALLOW_PRIVATE_NETWORK = True
@@ -156,7 +157,7 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.AllowAny',  # Change default to AllowAny
     ],
 }
 
