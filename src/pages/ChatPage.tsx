@@ -100,6 +100,7 @@ const subjects = [
 interface LocationState {
   initialQuery?: string;
   autoSend?: boolean;
+  newChat?: boolean;
 }
 
 const ChatPage = () => {
@@ -107,9 +108,10 @@ const ChatPage = () => {
   const state = location.state as LocationState;
   const initialQuery = state?.initialQuery || '';
   const shouldAutoSend = state?.autoSend || false;
+  const isNewChat = state?.newChat || false;
   
   const [messages, setMessages] = useState<MessageType[]>(() => {
-    // Load messages from localStorage on initial render
+    if (isNewChat) return [welcomeMessage];
     const savedMessages = localStorage.getItem('chatHistory');
     return savedMessages ? JSON.parse(savedMessages) : [welcomeMessage];
   });

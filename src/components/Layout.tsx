@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Outlet, NavLink, useLocation } from 'react-router-dom'
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { FiHome, FiMessageSquare, FiUsers, FiCalendar, FiSettings, FiMenu, FiX, FiSun, FiMoon, FiPlus, FiChevronLeft, FiLogIn, FiLogOut } from 'react-icons/fi'
 import { useAuth } from '../context/AuthContext'
 
@@ -14,6 +14,7 @@ const Layout = ({ darkMode, setDarkMode, onLoginClick }: LayoutProps) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const location = useLocation()
   const { isAuthenticated, user, logout } = useAuth()
+  const navigate = useNavigate()
 
   // For mobile responsiveness
   const toggleSidebar = () => {
@@ -47,6 +48,11 @@ const Layout = ({ darkMode, setDarkMode, onLoginClick }: LayoutProps) => {
         : 'text-gray-300 hover:bg-gray-800 hover:text-white'
     }`
 
+  const handleNewChat = () => {
+    localStorage.removeItem('chatHistory');
+    navigate('/chat', { state: { newChat: true } });
+  };
+
   return (
     <div className="flex h-screen bg-white dark:bg-black">
       {/* Mobile overlay */}
@@ -66,7 +72,10 @@ const Layout = ({ darkMode, setDarkMode, onLoginClick }: LayoutProps) => {
         <div className="flex flex-col h-full">
           {/* New Chat Button */}
           <div className="p-2">
-            <button className="flex items-center w-full p-3 text-white bg-gray-800 rounded-md hover:bg-gray-700 transition-colors duration-200 group">
+            <button
+              onClick={handleNewChat}
+              className="flex items-center w-full p-3 text-white bg-gray-800 rounded-md hover:bg-gray-700 transition-colors duration-200 group"
+            >
               <FiPlus className={`${sidebarCollapsed ? 'mx-auto' : 'mr-2'} transition-transform duration-200 group-hover:rotate-90`} size={16} />
               {!sidebarCollapsed && <span className="text-sm font-medium">New Chat</span>}
             </button>
