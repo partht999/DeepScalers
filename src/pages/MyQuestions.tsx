@@ -1,195 +1,128 @@
-import { useState } from 'react'
-import { FiStar, FiCheckCircle, FiClock } from 'react-icons/fi'
+import { useState, useEffect } from 'react'
+import { FiMessageSquare, FiChevronLeft } from 'react-icons/fi'
+import { useNavigate } from 'react-router-dom'
+import { MessageType } from '../components/ChatBubble'
 
-// Types
-type QuestionStatus = 'answered' | 'pending' | 'approved'
-
-interface Question {
+interface Chat {
   id: string
-  question: string
-  answer?: string
-  status: QuestionStatus
-  date: Date
-  subject: string
-  isImportant: boolean
+  title: string
+  messages: MessageType[]
+  lastUpdated: Date
 }
 
-// Dummy data for questions
-const initialQuestions: Question[] = [
-  {
-    id: '1',
-    question: 'How do I solve quadratic equations using the quadratic formula?',
-    answer: 'The quadratic formula is x = (-b ± √(b² - 4ac)) / 2a where ax² + bx + c = 0.',
-    status: 'approved',
-    date: new Date(2023, 7, 15),
-    subject: 'Mathematics',
-    isImportant: true,
-  },
-  {
-    id: '2',
-    question: 'What are Newton\'s three laws of motion?',
-    answer: 'Newton\'s First Law: An object at rest stays at rest, and an object in motion stays in motion unless acted upon by an external force. Newton\'s Second Law: Force equals mass times acceleration (F = ma). Newton\'s Third Law: For every action, there is an equal and opposite reaction.',
-    status: 'answered',
-    date: new Date(2023, 7, 18),
-    subject: 'Physics',
-    isImportant: false,
-  },
-  {
-    id: '3',
-    question: 'Explain the process of cellular respiration.',
-    status: 'pending',
-    date: new Date(2023, 7, 20),
-    subject: 'Biology',
-    isImportant: false,
-  },
-  {
-    id: '4',
-    question: 'What is the difference between HTTP and HTTPS?',
-    answer: 'HTTP is unsecured while HTTPS is secured using SSL/TLS. HTTPS encrypts the data transmitted between the client and server.',
-    status: 'answered',
-    date: new Date(2023, 7, 22),
-    subject: 'Computer Science',
-    isImportant: true,
-  },
-]
-
 const MyQuestions = () => {
-  const [questions, setQuestions] = useState<Question[]>(initialQuestions)
-  const [filter, setFilter] = useState<QuestionStatus | 'all'>('all')
+  const navigate = useNavigate()
+  const [chats, setChats] = useState<Chat[]>([])
+  const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
   
-  // Toggle important status
-  const toggleImportant = (id: string) => {
-    setQuestions(questions.map(q => 
-      q.id === id ? { ...q, isImportant: !q.isImportant } : q
-    ))
-  }
-  
-  // Filter questions based on status
-  const filteredQuestions = filter === 'all' 
-    ? questions 
-    : questions.filter(q => q.status === filter)
-  
-  // Status badge component
-  const StatusBadge = ({ status }: { status: QuestionStatus }) => {
-    switch(status) {
-      case 'approved':
-        return (
-          <span className="flex items-center text-green-600 bg-green-100 px-2 py-1 rounded-full text-xs font-medium">
-            <FiCheckCircle className="mr-1" /> 
-            Approved by Faculty
-          </span>
-        )
-      case 'answered':
-        return (
-          <span className="flex items-center text-blue-600 bg-blue-100 px-2 py-1 rounded-full text-xs font-medium">
-            <FiCheckCircle className="mr-1" /> 
-            Answered
-          </span>
-        )
-      case 'pending':
-        return (
-          <span className="flex items-center text-yellow-600 bg-yellow-100 px-2 py-1 rounded-full text-xs font-medium">
-            <FiClock className="mr-1" /> 
-            Pending
-          </span>
-        )
-      default:
-        return null
+  useEffect(() => {
+    try {
+      const savedHistory = localStorage.getItem('chatHistory')
+      if (savedHistory) {
+        const parsedHistory = JSON.parse(savedHistory) as MessageType[]
+        const formattedHistory = parsedHistory.map(message => ({
+          ...message,
+          timestamp: new Date(message.timestamp)
+        }))
+        const chatGroups = formattedHistory.reduce((groups: Record<string, MessageType[]>, message) => {
+          const chatId = message.timestamp.toLocaleDateString()
+          if (!groups[chatId]) {
+            groups[chatId] = []
+          }
+          groups[chatId].push(message)
+          return groups
+        }, {})
+        const chatList: Chat[] = Object.entries(chatGroups).map(([id, messages]) => ({
+          id,
+          title: `Chat from ${id}`,
+          messages: messages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()),
+          lastUpdated: new Date(Math.max(...messages.map(m => m.timestamp.getTime())))
+        }))
+        chatList.sort((a, b) => b.lastUpdated.getTime() - a.lastUpdated.getTime())
+        setChats(chatList)
+      }
+    } catch (error) {
+      console.error('Error loading chat history:', error)
     }
+  }, [])
+
+  const handleChatClick = (chat: Chat) => setSelectedChat(chat)
+  const handleBack = () => setSelectedChat(null)
+
+  if (selectedChat) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center mb-6">
+          <button 
+            onClick={handleBack}
+            className="mr-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+          >
+            <FiChevronLeft size={20} />
+          </button>
+          <h1 className="text-2xl font-bold">{selectedChat.title}</h1>
+        </div>
+        <div className="space-y-6">
+          {selectedChat.messages.map((message) => (
+            <div 
+              key={message.id} 
+              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                message.sender === 'user' 
+                  ? 'bg-primary-500 text-white rounded-tr-none' 
+                  : 'bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 rounded-tl-none'
+              }`}>
+                <div className="prose dark:prose-invert max-w-none">
+                  {message.text.split('\n').map((line, i) => (
+                    <p key={i} className={message.sender === 'user' ? 'text-white' : 'text-gray-700 dark:text-gray-300'}>
+                      {line}
+                    </p>
+                  ))}
+                </div>
+                <div className={`text-xs mt-1 ${
+                  message.sender === 'user' ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
+                }`}>
+                  {message.timestamp.toLocaleTimeString()}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">My Questions</h1>
-        <div className="flex space-x-2">
-          <button 
-            onClick={() => setFilter('all')}
-            className={`px-3 py-1 rounded ${filter === 'all' ? 'bg-primary-100 text-primary-600 dark:bg-primary-900 dark:text-primary-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}`}
-          >
-            All
-          </button>
-          <button 
-            onClick={() => setFilter('pending')}
-            className={`px-3 py-1 rounded ${filter === 'pending' ? 'bg-primary-100 text-primary-600 dark:bg-primary-900 dark:text-primary-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}`}
-          >
-            Pending
-          </button>
-          <button 
-            onClick={() => setFilter('answered')}
-            className={`px-3 py-1 rounded ${filter === 'answered' ? 'bg-primary-100 text-primary-600 dark:bg-primary-900 dark:text-primary-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}`}
-          >
-            Answered
-          </button>
-          <button 
-            onClick={() => setFilter('approved')}
-            className={`px-3 py-1 rounded ${filter === 'approved' ? 'bg-primary-100 text-primary-600 dark:bg-primary-900 dark:text-primary-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}`}
-          >
-            Approved
-          </button>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-2xl font-bold mb-6">Chat History</h1>
+      {chats.length === 0 ? (
+        <div className="text-center py-12">
+          <FiMessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+          <p className="text-gray-500 dark:text-gray-400">No chat history yet</p>
         </div>
-      </div>
-      
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-900">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Question
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Subject
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Date
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Status
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Important
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {filteredQuestions.map((question) => (
-              <tr key={question.id} className="hover:bg-gray-50 dark:hover:bg-gray-750">
-                <td className="px-6 py-4">
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">
-                    {question.question}
-                  </div>
-                  {question.answer && (
-                    <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      <strong>Answer:</strong> {question.answer}
-                    </div>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                  {question.subject}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                  {question.date.toLocaleDateString()}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <StatusBadge status={question.status} />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <button 
-                    onClick={() => toggleImportant(question.id)}
-                    className={`p-1 rounded-full ${
-                      question.isImportant 
-                        ? 'text-yellow-500 hover:text-yellow-600' 
-                        : 'text-gray-400 hover:text-gray-500'
-                    }`}
-                  >
-                    <FiStar className={question.isImportant ? 'fill-current' : ''} size={20} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      ) : (
+        <div className="space-y-2">
+          {chats.map((chat) => (
+            <button
+              key={chat.id}
+              onClick={() => handleChatClick(chat)}
+              className="w-full text-left p-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="font-medium text-gray-900 dark:text-white">{chat.title}</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {chat.messages.length} messages
+                  </p>
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  {chat.lastUpdated.toLocaleString()}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

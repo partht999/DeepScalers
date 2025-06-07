@@ -105,7 +105,11 @@ const ChatPage = () => {
   const state = location.state as LocationState;
   const initialQuery = state?.initialQuery || '';
   
-  const [messages, setMessages] = useState<MessageType[]>([welcomeMessage])
+  const [messages, setMessages] = useState<MessageType[]>(() => {
+    // Load messages from localStorage on initial render
+    const savedMessages = localStorage.getItem('chatHistory');
+    return savedMessages ? JSON.parse(savedMessages) : [welcomeMessage];
+  });
   const [newMessage, setNewMessage] = useState(initialQuery)
   const [subject, setSubject] = useState(subjects[0])
   const [isLoading, setIsLoading] = useState(false)
@@ -122,6 +126,11 @@ const ChatPage = () => {
   const [voiceClient, setVoiceClient] = useState<VoiceRecognitionClient | null>(null)
   const [isInputFocused, setIsInputFocused] = useState(false);
   const initialQueryProcessedRef = useRef(false);
+  
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('chatHistory', JSON.stringify(messages));
+  }, [messages]);
   
   // Initialize the voice client from the global instance
   useEffect(() => {
