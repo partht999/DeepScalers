@@ -7,7 +7,7 @@ interface FAQResponse {
     confidence: number;
     threshold: number;
     matched: boolean;
-    source: 'faq' | 'gemini';
+    source: 'faq' | 'groq';
     message?: string;
 }
 
@@ -18,7 +18,7 @@ const FAQ: React.FC = () => {
     const [error, setError] = useState('');
     const [confidence, setConfidence] = useState<number | null>(null);
     const [threshold, setThreshold] = useState<number | null>(null);
-    const [source, setSource] = useState<'faq' | 'gemini' | null>(null);
+    const [source, setSource] = useState<'faq' | 'groq' | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

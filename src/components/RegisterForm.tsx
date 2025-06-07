@@ -39,7 +39,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ phone, onSuccess, onCancel 
       setFormError('Phone number is required');
       return;
     }
-
+    
     if (!formData.student_id) {
       setFormError('Student ID is required');
       return;
@@ -79,30 +79,30 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ phone, onSuccess, onCancel 
       setFormError(error instanceof Error ? error.message : 'Registration failed');
     }
   };
-
+  
   return (
     <div className="w-full max-w-md mx-auto">
       <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
+      {error && (
           <div className="rounded-md bg-red-50 p-4">
             <div className="flex">
               <div className="ml-3">
                 <p className="text-sm font-medium text-red-800">{error}</p>
               </div>
             </div>
-          </div>
-        )}
-        
-        {formError && (
+        </div>
+      )}
+      
+      {formError && (
           <div className="rounded-md bg-red-50 p-4">
             <div className="flex">
               <div className="ml-3">
                 <p className="text-sm font-medium text-red-800">{formError}</p>
               </div>
             </div>
-          </div>
-        )}
-
+        </div>
+      )}
+        
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -229,7 +229,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ phone, onSuccess, onCancel 
             />
           </div>
         </div>
-
+        
         <div className="flex gap-4">
           <button
             type="button"

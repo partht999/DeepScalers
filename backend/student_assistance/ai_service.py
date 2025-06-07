@@ -6,13 +6,12 @@ from typing import List, Tuple, Optional
 import os
 from dotenv import load_dotenv
 from django.conf import settings
-import google.generativeai as genai
+from groq import Groq
 
 load_dotenv()
 
-# Configure Gemini
-genai.configure(api_key=os.getenv('GEMINI_API_KEY', 'AIzaSyC2wc4qKrB-oXKYHakv1PWvnk97uAC13V0'))
-model = genai.GenerativeModel("gemini-1.5-flash")
+# Configure Groq
+client = Groq(api_key=os.getenv('GROQ_API_KEY', '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'))
 
 class AIService:
     def __init__(self):
@@ -90,7 +89,7 @@ class AIService:
         similar_questions = self.search_similar_questions(question, limit=1)
         
         if not similar_questions:
-            # Generate a comprehensive answer using Gemini
+            # Generate a comprehensive answer using Groq's Llama model
             comprehensive_answer = self.generate_comprehensive_answer(question)
             if comprehensive_answer:
                 return comprehensive_answer, 0.7
@@ -109,7 +108,7 @@ class AIService:
         return None
 
     def generate_comprehensive_answer(self, question: str) -> str:
-        """Generate a comprehensive answer using Gemini AI."""
+        """Generate a comprehensive answer using Groq's Llama model."""
         try:
             prompt = f"""
             Please provide a detailed and comprehensive answer to the following question. 
@@ -130,20 +129,28 @@ class AIService:
             - Provide context where needed
             """
 
-            # Configure generation parameters for more detailed output
-            generation_config = {
-                "temperature": 0.7,  # Slightly higher temperature for more creative responses
-                "top_p": 0.95,      # Higher top_p for more diverse outputs
-                "top_k": 40,        # Higher top_k for more variety
-                "max_output_tokens": 2048,  # Maximum output length
-            }
-
-            response = model.generate_content(
-                prompt,
-                generation_config=generation_config
+            completion = client.chat.completions.create(
+                model="meta-llama/llama-4-scout-17b-16e-instruct",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=1,               # creativity level (0.0-1.0)
+                max_tokens=2000,            # max tokens in response
+                top_p=1,                    # nucleus sampling
+                stream=True,                # stream response chunk-by-chunk
+                stop=None
             )
             
-            return response.text
+            # Collect the streamed response
+            full_response = ""
+            for chunk in completion:
+                if chunk.choices[0].delta.content:
+                    full_response += chunk.choices[0].delta.content
+            
+            return full_response
         except Exception as e:
             print(f"Error generating comprehensive answer: {str(e)}")
             return None 

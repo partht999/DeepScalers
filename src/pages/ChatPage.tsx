@@ -317,7 +317,7 @@ const ChatPage = () => {
         currentMessage,
         subject,
         (aiMessage) => {
-          setMessages(prev => [...prev, aiMessage]);
+            setMessages(prev => [...prev, aiMessage]);
           setIsLoading(false);
         },
         (errorMessage) => {
@@ -406,9 +406,9 @@ const ChatPage = () => {
         setIsLoading(false);
       },
       (errorMessage) => {
-        setMessages(prev => [...prev, errorMessage]);
-        setIsLoading(false);
-      }
+      setMessages(prev => [...prev, errorMessage]);
+      setIsLoading(false);
+    }
     );
   };
   

@@ -12,7 +12,7 @@ import logging
 import traceback
 from rest_framework.permissions import AllowAny
 import json
-import google.generativeai as genai
+from groq import Groq
 import asyncio
 from asgiref.sync import async_to_sync
 from functools import partial
@@ -20,42 +20,13 @@ from functools import partial
 # Configure logging
 logger = logging.getLogger('faq_handler')
 
-# Configure Gemini
-genai.configure(api_key="AIzaSyC2wc4qKrB-oXKYHakv1PWvnk97uAC13V0")
-model = genai.GenerativeModel(
-    "gemini-1.5-flash",
-    generation_config={
-        "temperature": 0.3,  # Lower temperature for more focused responses
-        "top_p": 0.8,
-        "top_k": 20,
-        "max_output_tokens": 1024,  # Reduced for faster generation
-        "candidate_count": 1  # Only generate one response
-    },
-    safety_settings=[
-        {
-            "category": "HARM_CATEGORY_HARASSMENT",
-            "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-        },
-        {
-            "category": "HARM_CATEGORY_HATE_SPEECH",
-            "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-        },
-        {
-            "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-        },
-        {
-            "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-            "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-        }
-    ]
-)
+# Configure Groq
+client = Groq(api_key=os.getenv('GROQ_API_KEY', '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'))
 
 class FAQHandlerView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [UserRateThrottle]
-    rate = '100/hour'  # Rate limit: 100 requests per hour
-    SIMILARITY_THRESHOLD = 0.5
+    SIMILARITY_THRESHOLD = 0.7
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -92,21 +63,38 @@ class FAQHandlerView(APIView):
             logger.error(f"Traceback: {traceback.format_exc()}")
             raise
 
-    def get_gemini_response(self, question: str) -> str:
+    def get_groq_response(self, question: str) -> str:
         try:
-            logger.info(f"Getting Gemini response for question: {question}")
-            response = model.generate_content(
-                f"Please provide a concise answer to: {question}"
+            logger.info(f"Getting Groq response for question: {question}")
+            completion = client.chat.completions.create(
+                model="meta-llama/llama-4-scout-17b-16e-instruct",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"{question}"
+                    }
+                ],
+                temperature=1,               # creativity level (0.0-1.0)
+                max_tokens=3000,            # max tokens in response
+                top_p=1,                    # nucleus sampling
+                stream=True,                # stream response chunk-by-chunk
+                stop=None
             )
-            if not response or not response.text:
-                logger.error("Empty response from Gemini API")
+            
+            # Collect the streamed response
+            full_response = ""
+            for chunk in completion:
+                if chunk.choices[0].delta.content:
+                    full_response += chunk.choices[0].delta.content
+            
+            if not full_response:
+                logger.error("Empty response from Groq API")
                 return "I apologize, but I received an empty response from the AI model."
             
-            answer = response.text
-            logger.info(f"Received Gemini response: {answer}")
-            return answer
+            logger.info(f"Received Groq response: {full_response}")
+            return full_response
         except Exception as e:
-            logger.error(f"Error getting Gemini response: {str(e)}")
+            logger.error(f"Error getting Groq response: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             return "I apologize, but I'm having trouble generating a response at the moment. Please try again."
 
@@ -150,14 +138,14 @@ class FAQHandlerView(APIView):
             logger.debug(f"Search results: {json.dumps([{'score': r.score, 'payload': r.payload} for r in search_result], indent=2)}")
             
             if not search_result:
-                logger.info("No matching FAQ found, using Gemini")
-                gemini_answer = self.get_gemini_response(question)
+                logger.info("No matching FAQ found, using Groq")
+                groq_answer = self.get_groq_response(question)
                 response_data = {
-                    "answer": f"Answer from AI: {gemini_answer}",
+                    "answer": f"Answer from AI: {groq_answer}",
                     "confidence": 0.0,
                     "threshold": self.SIMILARITY_THRESHOLD,
                     "matched": False,
-                    "source": "gemini"
+                    "source": "groq"
                 }
                 # Cache the response
                 cache.set(cache_key, response_data, timeout=3600)  # Cache for 1 hour
@@ -170,14 +158,14 @@ class FAQHandlerView(APIView):
             
             # Check if the similarity score is above threshold
             if confidence_score < self.SIMILARITY_THRESHOLD:
-                logger.info(f"FAQ confidence score {confidence_score} below threshold {self.SIMILARITY_THRESHOLD}, using Gemini")
-                gemini_answer = self.get_gemini_response(question)
+                logger.info(f"FAQ confidence score {confidence_score} below threshold {self.SIMILARITY_THRESHOLD}, using Groq")
+                groq_answer = self.get_groq_response(question)
                 response_data = {
-                    "answer": f"Answer from AI: {gemini_answer}",
+                    "answer": f"Answer from AI: {groq_answer}",
                     "confidence": confidence_score,
                     "threshold": self.SIMILARITY_THRESHOLD,
                     "matched": False,
-                    "source": "gemini"
+                    "source": "groq"
                 }
                 # Cache the response
                 cache.set(cache_key, response_data, timeout=3600)  # Cache for 1 hour

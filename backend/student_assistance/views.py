@@ -15,7 +15,7 @@ import logging
 import os
 import tempfile
 from pathlib import Path
-import google.generativeai as genai
+from groq import Groq
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct, VectorParams, Distance
 from sentence_transformers import SentenceTransformer
@@ -26,9 +26,8 @@ User = get_user_model()
 ai_service = AIService()
 logger = logging.getLogger(__name__)
 
-# Configure Gemini
-genai.configure(api_key=os.getenv('GEMINI_API_KEY', 'AIzaSyC2wc4qKrB-oXKYHakv1PWvnk97uAC13V0'))
-model = genai.GenerativeModel("gemini-1.5-flash")
+# Configure Groq
+client = Groq(api_key=os.getenv('GROQ_API_KEY', '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'))
 
 # Configure Qdrant
 qdrant_client = QdrantClient(
@@ -38,7 +37,7 @@ qdrant_client = QdrantClient(
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
 def generate_qa_pairs(text):
-    """Generate Q&A pairs from text using Gemini."""
+    """Generate Q&A pairs from text using Groq."""
     try:
         prompt = f"""
         Generate comprehensive question-answer pairs based on the following content. 
@@ -64,19 +63,28 @@ def generate_qa_pairs(text):
            **Answer:** [Next comprehensive answer]
         """
 
-        # Configure generation parameters for more detailed output
-        generation_config = {
-            "temperature": 0.7,  # Slightly higher temperature for more creative responses
-            "top_p": 0.95,      # Higher top_p for more diverse outputs
-            "top_k": 40,        # Higher top_k for more variety
-            "max_output_tokens": 2048,  # Maximum output length
-        }
-
-        response = model.generate_content(
-            prompt,
-            generation_config=generation_config
+        completion = client.chat.completions.create(
+            model="meta-llama/llama-4-scout-17b-16e-instruct",
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=1,               # creativity level (0.0-1.0)
+            max_tokens=2000,            # max tokens in response
+            top_p=1,                    # nucleus sampling
+            stream=True,                # stream response chunk-by-chunk
+            stop=None
         )
-        qa_output = response.text
+        
+        # Collect the streamed response
+        full_response = ""
+        for chunk in completion:
+            if chunk.choices[0].delta.content:
+                full_response += chunk.choices[0].delta.content
+
+        qa_output = full_response
         logger.info("Generated Q&A pairs from text")
 
         # Parse Q&A pairs
@@ -90,7 +98,7 @@ def generate_qa_pairs(text):
             })
 
         if not faq_data:
-            logger.warning("No Q&A pairs found in Gemini's response")
+            logger.warning("No Q&A pairs found in Groq's response")
             return []
 
         logger.info(f"Generated {len(faq_data)} Q&A pairs")
