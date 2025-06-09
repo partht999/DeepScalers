@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { API_CONFIG } from '../config';
+import { API_CONFIG } from '../config/api';
 
 interface FAQResponse {
     answer: string;

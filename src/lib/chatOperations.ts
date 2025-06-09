@@ -16,7 +16,7 @@ const generateUniqueId = () => `${Date.now()}-${Math.random().toString(36).subst
 // Process a message and get AI response
 export const processMessage = async (message: string): Promise<MessageType> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/faq/ask/`, {
+    const response = await fetch(`${API_BASE_URL}/faq/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

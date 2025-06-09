@@ -103,6 +103,10 @@ interface LocationState {
   newChat?: boolean;
 }
 
+// Add type definitions for processMessage callbacks
+type MessageCallback = (message: MessageType) => void;
+type ErrorCallback = (error: MessageType) => void;
+
 const ChatPage = () => {
   const location = useLocation();
   const state = location.state as LocationState;
@@ -313,18 +317,21 @@ const ChatPage = () => {
       setNewMessage('');
       
       // Process the message
-      processMessage(
-        currentMessage,
-        subject,
-        (aiMessage) => {
-            setMessages(prev => [...prev, aiMessage]);
+      processMessage(currentMessage)
+        .then((aiMessage) => {
+          setMessages(prev => [...prev, aiMessage]);
           setIsLoading(false);
-        },
-        (errorMessage) => {
+        })
+        .catch((error) => {
+          const errorMessage: MessageType = {
+            id: Date.now().toString(),
+            text: `Error: ${error.message}`,
+            sender: 'ai',
+            timestamp: new Date()
+          };
           setMessages(prev => [...prev, errorMessage]);
           setIsLoading(false);
-        }
-      );
+        });
     }
   }, [initialQuery, shouldAutoSend]);
   
@@ -398,18 +405,21 @@ const ChatPage = () => {
     setNewMessage('');
     
     // Process the message
-    processMessage(
-      currentMessage,
-      subject,
-      (aiMessage) => {
+    processMessage(currentMessage)
+      .then((aiMessage) => {
         setMessages(prev => [...prev, aiMessage]);
         setIsLoading(false);
-      },
-      (errorMessage) => {
-      setMessages(prev => [...prev, errorMessage]);
-      setIsLoading(false);
-    }
-    );
+      })
+      .catch((error) => {
+        const errorMessage: MessageType = {
+          id: Date.now().toString(),
+          text: `Error: ${error.message}`,
+          sender: 'ai',
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, errorMessage]);
+        setIsLoading(false);
+      });
   };
   
   // Regenerate last AI response
@@ -435,96 +445,24 @@ const ChatPage = () => {
     setIsLoading(true);
     
     // Generate new response
-    setTimeout(() => {
-      const aiResponse: MessageType = {
-        id: Date.now().toString(),
-        text: generateResponse(lastUserMessage.text, subject),
-        sender: 'ai',
-        timestamp: new Date(),
-      }
-      
-      setMessages(prev => [...prev, aiResponse]);
-      setIsLoading(false);
-      setRegenerating(false);
-    }, 1500);
+    processMessage(lastUserMessage.text)
+      .then((aiMessage) => {
+        setMessages(prev => [...prev, aiMessage]);
+        setIsLoading(false);
+        setRegenerating(false);
+      })
+      .catch((error) => {
+        const errorMessage: MessageType = {
+          id: Date.now().toString(),
+          text: `Error: ${error.message}`,
+          sender: 'ai',
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, errorMessage]);
+        setIsLoading(false);
+        setRegenerating(false);
+      });
   };
-  
-  // Generate a more detailed mock response based on the query
-  const generateResponse = (query: string, subject: string): string => {
-    const lowerQuery = query.toLowerCase();
-    
-    if (lowerQuery.includes('quantum') || lowerQuery.includes('physics')) {
-      return `
-In quantum mechanics, particles can exist in multiple states simultaneously (superposition) until observed. This is fundamentally different from classical physics, where objects have definite properties.
-
-The famous Schrödinger's cat thought experiment illustrates this: a cat in a box with a radioactive atom is simultaneously alive and dead until observed.
-
-Key quantum concepts include:
-- Wave-particle duality
-- Heisenberg's uncertainty principle
-- Quantum entanglement
-- Quantum tunneling
-
-These principles form the foundation of technologies like quantum computing, which uses quantum bits or "qubits" that can represent multiple states at once, potentially solving problems impossible for classical computers.
-      `.trim();
-    }
-    
-    if (lowerQuery.includes('equation') || lowerQuery.includes('quadratic')) {
-      return `
-To solve a quadratic equation in the form ax² + bx + c = 0:
-
-1. Use the quadratic formula: x = (-b ± √(b² - 4ac)) / 2a
-
-2. Step by step:
-   - Calculate the discriminant: b² - 4ac
-   - If the discriminant is negative, there are no real solutions
-   - If the discriminant is zero, there is one real solution: x = -b / 2a
-   - If the discriminant is positive, there are two real solutions
-
-3. Example: For 2x² - 4x - 6 = 0
-   a = 2, b = -4, c = -6
-   Discriminant = (-4)² - 4(2)(-6) = 16 + 48 = 64
-   x = (4 ± √64) / 4 = (4 ± 8) / 4
-   x = 3 or x = -1
-
-Would you like to see another example?
-      `.trim();
-    }
-    
-    if (lowerQuery.includes('mitosis') || lowerQuery.includes('meiosis')) {
-      return `
-Mitosis and meiosis are both types of cell division, but they serve different purposes:
-
-**Mitosis:**
-- Creates two identical daughter cells
-- Maintains the same chromosome number (diploid to diploid)
-- Used for growth, repair, and asexual reproduction
-- Consists of one division cycle
-- Results in 2 genetically identical cells
-
-**Meiosis:**
-- Creates four haploid daughter cells
-- Reduces chromosome number by half (diploid to haploid)
-- Used for sexual reproduction (creating gametes)
-- Consists of two division cycles (meiosis I and II)
-- Results in 4 genetically diverse cells
-- Involves crossing over and genetic recombination
-
-The key difference is that mitosis maintains genetic continuity, while meiosis introduces genetic variation, which is essential for evolution and adaptation.
-      `.trim();
-    }
-    
-    // Default response
-    return `I understand your question about "${query}". Here's what I know about this topic in ${subject !== 'All Subjects' ? subject : 'general'}:
-
-This is an important concept in ${subject !== 'All Subjects' ? subject : 'academics'}. The key points to understand are:
-
-1. The fundamental principles involve understanding the underlying concepts
-2. There are several approaches to solve problems in this area
-3. Many students find this topic challenging initially, but with practice it becomes clearer
-
-Would you like me to explain any specific aspect of this topic in more detail?`;
-  }
   
   // Handle Enter key to send message
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -533,7 +471,7 @@ Would you like me to explain any specific aspect of this topic in more detail?`;
       handleSendMessage()
     }
   }
-
+  
   // Toggle subject dropdown
   const toggleDropdown = () => {
     setShowDropdown(!showDropdown)
@@ -646,7 +584,7 @@ Would you like me to explain any specific aspect of this topic in more detail?`;
         )}
         
         {/* Chat messages with alternating backgrounds */}
-        <div className="w-full max-w-3xl mx-auto">
+        <div className="space-y-4">
           {messages.map((message, index) => (
             <div 
               key={message.id} 
@@ -679,7 +617,7 @@ Would you like me to explain any specific aspect of this topic in more detail?`;
                     </button>
                     
                     {/* Regenerate button - only show for the last AI message */}
-                    {index === messages.length - 1 && message.sender === 'ai' && (
+                    {index === messages.length - 1 && (
                       <button 
                         onClick={handleRegenerate}
                         disabled={regenerating || isLoading}
@@ -730,7 +668,7 @@ Would you like me to explain any specific aspect of this topic in more detail?`;
       )}
       
       {/* Input Area - Fixed at bottom with glass effect */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 p-4 transition-all duration-300">
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 p-4">
         <div className="max-w-3xl mx-auto">
           <div className={`relative flex items-end ${
             isInputFocused 
@@ -746,7 +684,7 @@ Would you like me to explain any specific aspect of this topic in more detail?`;
             </button>
             
             {/* Voice recognition button */}
-            <button 
+            <button
               onClick={handleVoiceRecognition}
               className={`relative p-2 rounded-full transition-all duration-300 mr-1 ${
                 isListening 
@@ -765,7 +703,7 @@ Would you like me to explain any specific aspect of this topic in more detail?`;
             </button>
             
             {/* Message input */}
-            {newMessage && showTranscriptionSuccess ? (
+            {showTranscriptionSuccess ? (
               <div 
                 className="flex-1 outline-none bg-transparent py-2 px-2 max-h-32 overflow-y-auto"
                 onClick={() => textareaRef.current?.focus()}
@@ -804,7 +742,7 @@ Would you like me to explain any specific aspect of this topic in more detail?`;
       </div>
       
       {/* Keyboard shortcut indicator */}
-      <div className="fixed bottom-24 left-0 right-0 flex justify-center opacity-50 pointer-events-none">
+      <div className="fixed bottom-4 right-4">
         <div className="bg-white dark:bg-gray-900 text-xs px-2 py-1 rounded-md border border-gray-200 dark:border-gray-700 flex items-center">
           <FiCommand className="mr-1" size={12} />
           <span>Press </span>
@@ -827,13 +765,10 @@ Would you like me to explain any specific aspect of this topic in more detail?`;
       
       {/* Transcription success toast */}
       {showTranscriptionSuccess && (
-        <div className="fixed bottom-28 left-1/2 transform -translate-x-1/2 bg-green-50 dark:bg-green-900 
-                        text-green-600 dark:text-green-400 px-3 py-1.5 rounded-lg text-sm 
-                        border border-green-200 dark:border-green-800 shadow-md animate-fadeIn z-50 flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-          <span>Transcription complete</span>
+        <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-50 dark:bg-green-900 
+                        text-green-600 dark:text-green-400 px-3 py-1 rounded-full text-xs 
+                        border border-green-200 dark:border-green-800 shadow-md animate-fadeIn">
+          Transcription successful!
         </div>
       )}
     </div>

@@ -37,8 +37,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('student_auth.urls')),
     path('api/voice/', include('voice_recognition.urls')),
-    # Direct mapping for FAQ endpoint
-    path('api/faq/ask/', FAQHandlerView.as_view(), name='ask_question'),
+    path('api/faq/', include('faq_handler.urls')),  # Include FAQ URLs
 ]
 
 # Serve media files in development
