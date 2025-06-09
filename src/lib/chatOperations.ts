@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { API_CONFIG } from '../config';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = API_CONFIG.BASE_URL;
 
 export interface MessageType {
     id: string;
@@ -16,7 +16,7 @@ const generateUniqueId = () => `${Date.now()}-${Math.random().toString(36).subst
 // Process a message and get AI response
 export const processMessage = async (message: string): Promise<MessageType> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/faq/`, {
+    const response = await fetch(`${API_BASE_URL}/faq/ask/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
