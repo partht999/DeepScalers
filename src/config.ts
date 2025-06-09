@@ -33,8 +33,12 @@ export async function testBackendConnection() {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
         'Origin': window.location.origin,
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
       credentials: 'include',
+      mode: 'cors',
     });
     
     const elapsed = Date.now() - startTime;

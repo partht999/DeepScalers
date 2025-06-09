@@ -28,9 +28,9 @@ ALLOWED_HOSTS = [
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "http://localhost:5173",  # Add Vite development server
+    "http://localhost:5173",
     "http://127.0.0.1:3000",
-    "http://127.0.0.1:5173",  # Add Vite development server
+    "http://127.0.0.1:5173",
     "https://deepscalers-frontend-production.up.railway.app",
 ]
 
@@ -55,7 +55,15 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'access-control-allow-origin',
+    'access-control-allow-headers',
+    'access-control-allow-methods',
 ]
+
+# Add these new CORS settings
+CORS_ORIGIN_ALLOW_ALL = True
+CORS_ALLOW_CREDENTIALS = True
+CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
 
 # Application definition
 INSTALLED_APPS = [
