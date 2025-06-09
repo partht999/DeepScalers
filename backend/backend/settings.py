@@ -25,6 +25,38 @@ ALLOWED_HOSTS = [
     '.up.railway.app',
 ]
 
+# CORS settings
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:5173",  # Add Vite development server
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",  # Add Vite development server
+    "https://deepscalers-frontend-production.up.railway.app",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -43,7 +75,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # Make sure this is at the top
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -116,40 +148,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Custom user model
 AUTH_USER_MODEL = 'student_auth.StudentUser'
-
-# CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "https://deepscalers.vercel.app",
-    "http://localhost:5173",
-    "https://deepscalers.onrender.com",
-    "http://localhost:3000",  # Add local development server
-]
-
-CORS_ALLOW_ALL_ORIGINS = True  # Temporarily allow all origins for testing
-CORS_ALLOW_CREDENTIALS = True
-CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
-CORS_ALLOW_PRIVATE_NETWORK = True
-
-CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
-]
-
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-]
 
 # REST Framework
 REST_FRAMEWORK = {
