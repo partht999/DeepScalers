@@ -19,10 +19,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'your-secret-key-here')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    'deepscalers-backend-production.up.railway.app',
-    '.up.railway.app',
+    '*'
 ]
 
 # CORS settings
