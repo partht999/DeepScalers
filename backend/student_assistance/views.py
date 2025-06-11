@@ -22,6 +22,7 @@ from sentence_transformers import SentenceTransformer
 import uuid
 import re
 from django.conf import settings
+from concurrent.futures import ThreadPoolExecutor, as_completed
 User = get_user_model()
 ai_service = AIService()
 logger = logging.getLogger(__name__)
@@ -36,75 +37,186 @@ qdrant_client = QdrantClient(
 )
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
-def generate_qa_pairs(text):
-    """Generate Q&A pairs from text using Groq."""
+def process_text_chunk(text, chunk_number, total_chunks, api_key):
+    """Process a single chunk of text with a specific API key"""
     try:
-        prompt = f"""
-        Generate comprehensive question-answer pairs based on the following content. 
-        Make sure to cover all important concepts, details, and nuances from the text.
-        Generate at least 5-7 detailed Q&A pairs that thoroughly cover the content.
+        # Add chunk context to the prompt
+        chunk_context = f"This is chunk {chunk_number} of {total_chunks} from a larger document. "
+        chunk_context += "Focus on generating Q&A pairs specific to this section while maintaining context. "
+        chunk_context += "Ensure questions and answers are self-contained but reference the broader topic when relevant."
 
-        Guidelines:
-        1. Questions should be specific and detailed
-        2. Answers should be comprehensive and well-explained
-        3. Include both basic and advanced concepts
-        4. Cover all major topics and subtopics
-        5. Include examples where relevant
-        6. Make sure answers are self-contained and complete
+        prompt = f"""You are an expert at creating comprehensive and detailed Q&A pairs from educational content. {chunk_context}
 
-        Content to analyze:
-        \"\"\"{text}\"\"\"
+Content to analyze:
+{text}
 
-        Format the output as:
-        1. **Question:** [Detailed question about a specific aspect]
-           **Answer:** [Comprehensive answer with explanations, examples, and relevant details]
+Generate detailed Q&A pairs following these rules:
+1. Questions should be specific and test deep understanding
+2. Answers should be comprehensive and include examples
+3. Cover all major concepts and details from the content
+4. Include both theoretical and practical aspects
+5. Maintain proper formatting with clear separation between Q&A pairs
 
-        2. **Question:** [Next detailed question]
-           **Answer:** [Next comprehensive answer]
-        """
+Format each Q&A pair exactly like this:
+## 1. Question: [Your question here]
+## Answer: [Your detailed answer here]
 
-        completion = client.chat.completions.create(
+## 2. Question: [Next question]
+## Answer: [Next answer]
+
+And so on..."""
+
+        client = Groq(api_key=api_key)
+        chunk = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
             model="meta-llama/llama-4-scout-17b-16e-instruct",
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            temperature=1,               # creativity level (0.0-1.0)
-            max_tokens=2000,            # max tokens in response
-            top_p=1,                    # nucleus sampling
-            stream=True,                # stream response chunk-by-chunk
-            stop=None
+            temperature=1,
+            max_tokens=8000,
+            top_p=1,
+            stream=True
         )
-        
-        # Collect the streamed response
+
         full_response = ""
-        for chunk in completion:
+        for chunk in chunk:
             if chunk.choices[0].delta.content:
                 full_response += chunk.choices[0].delta.content
 
-        qa_output = full_response
-        logger.info("Generated Q&A pairs from text")
-
+        logger.info(f"Full response: {full_response}")
+        
         # Parse Q&A pairs
         faq_data = []
-        qa_pairs = re.findall(r"\*\*Question:\*\*\s*(.*?)\n\s*\*\*Answer:\*\*\s*(.*?)(?=\n\d+\.|\Z)", qa_output, re.DOTALL)
-
-        for q, a in qa_pairs:
-            faq_data.append({
-                "question": q.strip(),
-                "answer": a.strip()
-            })
+        
+        # Try multiple patterns to match different formats
+        patterns = [
+            # Pattern 1: ## 1. Question: ... ## Answer: ... (without asterisks)
+            r"##\s*\d+\.\s*Question:\s*(.*?)\n##\s*Answer:\s*(.*?)(?=\n##|\Z)",
+            
+            # Pattern 2: ## 1. **Question:** ... ## **Answer:** ... (with asterisks)
+            r"##\s*\d+\.\s*\*\*Question:\*\*\s*(.*?)\n##\s*\*\*Answer:\*\*\s*(.*?)(?=\n##|\Z)",
+            
+            # Pattern 3: **1. Question:** ... **Answer:** ... (with asterisks)
+            r"\*\*\d+\.\s*Question:\*\*\s*(.*?)\n\*\*Answer:\*\*\s*(.*?)(?=\n\*\*|\Z)",
+            
+            # Pattern 4: Original pattern
+            r"\*\*Question:\*\*\s*(.*?)\n\s*\*\*Answer:\*\*\s*(.*?)(?=\n\d+\.|\Z)"
+        ]
+        
+        for pattern in patterns:
+            qa_pairs = re.findall(pattern, full_response, re.DOTALL)
+            if qa_pairs:
+                for q, a in qa_pairs:
+                    if q.strip() and a.strip():  # Only add if both question and answer are non-empty
+                        faq_data.append({
+                            "question": q.strip(),
+                            "answer": a.strip()
+                        })
+                break  # If we found pairs with this pattern, no need to try others
 
         if not faq_data:
-            logger.warning("No Q&A pairs found in Groq's response")
+            logger.warning(f"No Q&A pairs found in Groq's response for chunk {chunk_number if chunk_number else 'single'}")
+            logger.warning(f"Response content: {full_response[:500]}...")
             return []
 
-        logger.info(f"Generated {len(faq_data)} Q&A pairs")
+        logger.info(f"Generated {len(faq_data)} Q&A pairs for chunk {chunk_number if chunk_number else 'single'}")
         return faq_data
+
     except Exception as e:
-        logger.error(f"Error generating Q&A pairs: {str(e)}")
+        logger.error(f"Error processing chunk {chunk_number}: {str(e)}")
+        return []
+
+def generate_qa_pairs(text):
+    """Generate Q&A pairs from text using Groq API"""
+    try:
+        # List of Groq API keys for rotation
+        GROQ_API_KEYS = [
+            "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",
+            "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",
+            "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",
+            "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",
+            "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",
+            "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",
+            "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",
+            "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",
+            "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"
+        ]
+
+        # Estimate tokens (rough estimate: 1 token ≈ 4 characters)
+        estimated_tokens = len(text) // 4
+        logger.info(f"Estimated tokens in text: {estimated_tokens}")
+
+        # Determine optimal chunk size and number of chunks based on content size
+        if estimated_tokens <= 15000:  # Small content
+            # Process in one go with a single API key
+            return process_text_chunk(text, 0, 1, GROQ_API_KEYS[0])
+        elif estimated_tokens <= 50000:  # Medium content
+            # Use 3-4 API keys
+            num_chunks = 3
+            chunk_size = estimated_tokens // num_chunks
+            api_keys = GROQ_API_KEYS[:3]
+        elif estimated_tokens <= 100000:  # Large content
+            # Use 5-7 API keys
+            num_chunks = 5
+            chunk_size = estimated_tokens // num_chunks
+            api_keys = GROQ_API_KEYS[:5]
+        else:  # Very large content
+            # Use all available API keys
+            num_chunks = min(9, len(GROQ_API_KEYS))  # Use up to 9 chunks to leave one key for retries
+            chunk_size = estimated_tokens // num_chunks
+            api_keys = GROQ_API_KEYS
+
+        logger.info(f"Processing content in {num_chunks} chunks using {len(api_keys)} API keys")
+        
+        # Split text into chunks while maintaining paragraph context
+        chunks = []
+        current_chunk = []
+        current_size = 0
+        
+        # Split by paragraphs first
+        paragraphs = text.split('\n\n')
+        
+        for para in paragraphs:
+            para_tokens = len(para) // 4
+            if current_size + para_tokens > chunk_size and current_chunk:
+                # Current chunk is full, save it and start new one
+                chunks.append('\n\n'.join(current_chunk))
+                current_chunk = [para]
+                current_size = para_tokens
+            else:
+                current_chunk.append(para)
+                current_size += para_tokens
+        
+        # Add the last chunk if it's not empty
+        if current_chunk:
+            chunks.append('\n\n'.join(current_chunk))
+
+        # Process chunks in parallel using ThreadPoolExecutor
+        all_qa_pairs = []
+        with ThreadPoolExecutor(max_workers=len(api_keys)) as executor:
+            # Create a list of futures for each chunk
+            futures = []
+            for i, chunk in enumerate(chunks):
+                api_key = api_keys[i % len(api_keys)]
+                future = executor.submit(process_text_chunk, chunk, i+1, len(chunks), api_key)
+                futures.append(future)
+            
+            # Collect results as they complete
+            for future in as_completed(futures):
+                try:
+                    qa_pairs = future.result()
+                    if qa_pairs:
+                        all_qa_pairs.extend(qa_pairs)
+                except Exception as e:
+                    logger.error(f"Error processing chunk: {str(e)}")
+
+        if not all_qa_pairs:
+            logger.warning("No Q&A pairs were generated from any chunk")
+            return []
+
+        logger.info(f"Successfully generated {len(all_qa_pairs)} Q&A pairs in total")
+        return all_qa_pairs
+
+    except Exception as e:
+        logger.error(f"Error in generate_qa_pairs: {str(e)}")
         return []
 
 def upload_to_qdrant(faq_data):
