@@ -17,7 +17,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'your-secret-key-here')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
-
+GROQ_API_KEY = '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'
 ALLOWED_HOSTS = [
     '*'
 ]

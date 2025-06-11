@@ -16,12 +16,12 @@ from groq import Groq
 import asyncio
 from asgiref.sync import async_to_sync
 from functools import partial
-
+from django.conf import settings
 # Configure logging
 logger = logging.getLogger('faq_handler')
 
 # Configure Groq
-client = Groq(api_key=os.getenv('GROQ_API_KEY', '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'))
+client = Groq(api_key=settings.GROQ_API_KEY)
 
 class FAQHandlerView(APIView):
     permission_classes = [AllowAny]
