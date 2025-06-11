@@ -26,7 +26,7 @@ client = Groq(api_key=settings.GROQ_API_KEY)
 class FAQHandlerView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [UserRateThrottle]
-    SIMILARITY_THRESHOLD = 0.7
+    SIMILARITY_THRESHOLD = 0.5
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
