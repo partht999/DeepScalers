@@ -27,7 +27,7 @@ ai_service = AIService()
 logger = logging.getLogger(__name__)
 
 # Configure Groq
-client = Groq(api_key=os.getenv('GROQ_API_KEY', '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'))
+client = Groq(api_key=settings.GROQ_API_KEY)
 
 # Configure Qdrant
 qdrant_client = QdrantClient(
