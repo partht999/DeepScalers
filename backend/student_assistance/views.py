@@ -21,7 +21,7 @@ from qdrant_client.models import PointStruct, VectorParams, Distance
 from sentence_transformers import SentenceTransformer
 import uuid
 import re
-
+from django.conf import settings
 User = get_user_model()
 ai_service = AIService()
 logger = logging.getLogger(__name__)
